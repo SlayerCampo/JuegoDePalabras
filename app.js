@@ -131,7 +131,7 @@ class WordGame {
 
   async loadDictionary() {
     try {
-      const response = await fetch("palabras.json");
+      const response = await fetch("index.json");
       const words = await response.json();
       words.forEach((w) => this.dictionary.add(limpiarTexto(w)));
       console.log(`Diccionario cargado con ${this.dictionary.size} palabras.`);
