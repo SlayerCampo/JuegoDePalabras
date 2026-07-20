@@ -536,12 +536,16 @@ class WordGame {
 
     const inputEl = document.getElementById("word-input");
     const rawWord = inputEl.value;
-    const fullWord = limpiarTexto(this.targetLetter + rawWord);
+    const typedWord = limpiarTexto(rawWord);
+    const targetLetter = limpiarTexto(this.targetLetter);
+    const fullWord = typedWord.startsWith(targetLetter)
+      ? typedWord
+      : targetLetter + typedWord;
 
     const errorEl = document.getElementById("word-error");
 
     // Validaciones
-    if (rawWord.trim() === "") {
+    if (typedWord === "") {
       errorEl.innerText = "Escribe algo.";
       errorEl.classList.remove("hidden");
       return;
