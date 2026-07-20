@@ -568,11 +568,16 @@ class StopGame {
         <div class="stop-rep-section" id="rep-section-${cat}">
           <button class="stop-rep-btn" id="rep-btn-${cat}" data-cat="${cat}">
             <span class="stop-rep-btn-icon">🔁</span>
-            <span class="stop-rep-btn-text">Repetida — ambas respuestas son iguales</span>
+            <span class="stop-rep-btn-text">
+              <strong>Repetida</strong>
+              <span>Ambas respuestas son iguales</span>
+            </span>
+            <span class="stop-rep-btn-arrow">🤝</span>
           </button>
           <div id="rep-status-${cat}"></div>
         </div>
       ` : '';
+
 
       card.innerHTML = `
         <div class="stop-review-card-header">
