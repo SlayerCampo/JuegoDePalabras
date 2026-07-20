@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -7,17 +7,28 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>¡Palabra Bomba!</title>
+    <meta name="description" content="Juego de palabras multijugador en tiempo real. ¡Agilidad mental contra el reloj!" />
     <!-- Google Fonts -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <!-- CSS -->
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+
+    <!-- ── Botón modo oscuro (global, siempre visible) ── -->
+    <button id="btn-dark-mode" aria-label="Cambiar tema" title="Modo oscuro / claro">
+      <span class="icon-moon">🌙</span>
+      <span class="icon-sun">☀️</span>
+    </button>
+
     <div class="app-container">
-      <!-- VISTA 1: INICIO -->
+
+      <!-- ══════════════════════════════════════
+           VISTA 1: INICIO
+      ══════════════════════════════════════ -->
       <section id="view-home" class="view active">
         <h1 class="main-title">
           ¡PALABRA <br /><span class="highlight">BOMBA!</span>
@@ -26,20 +37,24 @@
           Agilidad mental, tiempo en contra y muchas palabras.
         </p>
 
+        <!-- Selector de dificultad (pills) -->
         <div class="mode-panel">
-          <p class="mode-panel-title">Elige un modo</p>
-          <div class="mode-grid">
-            <button class="mode-option active" data-mode="normal">
-              <span class="mode-name">Normal</span>
-              <span class="mode-desc">30s, 15s, 7.5s</span>
+          <p class="mode-panel-title">Elige la dificultad</p>
+          <div class="mode-pills">
+            <button class="mode-pill" data-mode="easy" type="button">
+              <span class="pill-emoji">🌿</span>
+              <span class="pill-name">Fácil</span>
+              <span class="pill-times">40s · 20s · 10s</span>
             </button>
-            <button class="mode-option" data-mode="hardcore">
-              <span class="mode-name">Hardcore</span>
-              <span class="mode-desc">10s, 5s, 2.5s</span>
+            <button class="mode-pill active" data-mode="normal" type="button">
+              <span class="pill-emoji">⚡</span>
+              <span class="pill-name">Normal</span>
+              <span class="pill-times">30s · 15s · 7s</span>
             </button>
-            <button class="mode-option" data-mode="easy">
-              <span class="mode-name">Fácil</span>
-              <span class="mode-desc">40s, 20s, 10s</span>
+            <button class="mode-pill" data-mode="hardcore" type="button">
+              <span class="pill-emoji">🔥</span>
+              <span class="pill-name">Hardcore</span>
+              <span class="pill-times">10s · 5s · 2s</span>
             </button>
           </div>
         </div>
@@ -52,12 +67,16 @@
         </div>
       </section>
 
-      <!-- VISTA 2: LOBBY -->
+      <!-- ══════════════════════════════════════
+           VISTA 2: LOBBY
+      ══════════════════════════════════════ -->
       <section id="view-lobby" class="view hidden">
         <h2 class="section-title">Sala de Espera</h2>
 
         <div id="lobby-host" class="hidden">
-          <p>Comparte este código con tu amigo:</p>
+          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:0.5rem;">
+            Comparte este código con tu amigo:
+          </p>
           <div id="room-code-display" class="code-box">Cargando...</div>
           <div id="qr-container" class="qr-box"></div>
           <p class="loading-text">
@@ -66,7 +85,9 @@
         </div>
 
         <div id="lobby-guest" class="hidden">
-          <p>Ingresa el código de la sala:</p>
+          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:1rem;">
+            Ingresa el código de la sala:
+          </p>
           <input
             type="text"
             id="room-code-input"
@@ -83,41 +104,48 @@
           </p>
         </div>
 
-        <button class="btn btn-text btn-back">Volver</button>
+        <button class="btn btn-text btn-back">← Volver</button>
       </section>
 
-      <!-- VISTA 3: PERFIL -->
+      <!-- ══════════════════════════════════════
+           VISTA 3: PERFIL
+      ══════════════════════════════════════ -->
       <section id="view-profile" class="view hidden">
         <h2 class="section-title">Tu Perfil</h2>
 
         <div class="emoji-selector">
           <div class="selected-emoji" id="current-emoji">😎</div>
-          <button id="btn-change-emoji" class="btn btn-small">Cambiar</button>
+          <button id="btn-change-emoji" class="btn btn-small">Cambiar avatar</button>
         </div>
 
         <input
           type="text"
           id="player-name-input"
           class="input-large"
-          placeholder="Tu Apodo"
+          placeholder="Tu apodo"
           maxlength="10"
         />
 
-        <button id="btn-ready" class="btn btn-primary">¡Estoy Listo!</button>
+        <button id="btn-ready" class="btn btn-primary">¡Estoy Listo! 🎯</button>
         <p id="ready-status" class="status-text hidden">
-          Esperando al otro jugador...
+          Esperando al otro jugador<span class="dots">...</span>
         </p>
-        <button class="btn btn-text btn-profile-back">Volver</button>
+        <button class="btn btn-text btn-profile-back">← Volver</button>
       </section>
 
-      <!-- VISTA 4: CUENTA REGRESIVA PANTALLA COMPLETA -->
+      <!-- ══════════════════════════════════════
+           VISTA 4: CUENTA REGRESIVA
+      ══════════════════════════════════════ -->
       <section id="view-countdown" class="view hidden fullscreen-center">
         <div id="big-countdown">3</div>
       </section>
 
-      <!-- VISTA 5: JUEGO -->
+      <!-- ══════════════════════════════════════
+           VISTA 5: JUEGO
+      ══════════════════════════════════════ -->
       <section id="view-game" class="view hidden">
-        <!-- Header común -->
+
+        <!-- Header: jugadores -->
         <header class="game-header">
           <div class="player-info" id="p1-info">
             <span class="emoji">😎</span>
@@ -132,7 +160,7 @@
           </div>
         </header>
 
-        <!-- Barra de Mecha -->
+        <!-- Barra de mecha -->
         <div class="timer-container">
           <div id="mecha-bar" class="mecha"></div>
           <div id="mecha-spark" class="spark">✨</div>
@@ -142,12 +170,12 @@
           <span id="time-remaining">0.0s</span>
         </div>
 
-        <!-- Zona de Letra -->
+        <!-- Letra objetivo -->
         <div class="target-letter-zone">
-          <div id="target-letter">R1</div>
+          <div id="target-letter">A</div>
         </div>
 
-        <!-- Zona de Acción (Activo) -->
+        <!-- Zona activa (es tu turno) -->
         <div id="action-zone" class="action-area hidden">
           <p class="instruction" id="turn-hint">Escribe una palabra válida</p>
           <div class="input-wrapper">
@@ -155,41 +183,41 @@
               type="text"
               id="word-input"
               autocomplete="off"
-              placeholder="..."
+              placeholder="tu palabra..."
               autocapitalize="off"
               autocorrect="off"
               spellcheck="false"
             />
           </div>
-          <button id="btn-verify" class="btn btn-primary">Verificar</button>
+          <button id="btn-verify" class="btn btn-primary">Verificar ✓</button>
           <p id="word-error" class="error-text hidden">¡Palabra no válida!</p>
         </div>
 
-        <!-- Zona de Espectador (Pasivo) -->
+        <!-- Zona espectador (turno del otro) -->
         <div id="spectator-zone" class="action-area spectator hidden">
           <p class="instruction">
             Turno de <strong id="active-player-name">Oponente</strong>
           </p>
           <div class="typing-indicator">
-            <span class="dot"></span><span class="dot"></span
-            ><span class="dot"></span>
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
           </div>
           <div id="live-typing" class="live-typing-box">
-            A<span class="faded">...</span>
+            <span class="faded">Esperando...</span>
           </div>
         </div>
 
-        <!-- Overlay de acierto y cambio de turno -->
+        <!-- Overlay: cambio de turno -->
         <div id="turn-overlay" class="turn-overlay hidden">
           <h2 id="turn-message">¡Perfecto!</h2>
           <p id="turn-detail">
-            Tu turno sigue en <span id="turn-countdown">3</span>...
+            Comienza en <span id="turn-countdown">3</span>...
           </p>
         </div>
 
-        <!-- Overlay de BOOM -->
+        <!-- Overlay: BOOM -->
         <div id="boom-overlay" class="boom-overlay hidden">
-          <h1>¡BOOM!</h1>
+          <h1>💥 ¡BOOM!</h1>
+          <p>Se acabó el tiempo</p>
         </div>
 
         <button id="btn-exit-game" class="btn btn-text btn-exit-game">
@@ -197,9 +225,11 @@
         </button>
       </section>
 
-      <!-- VISTA 6: GAME OVER -->
+      <!-- ══════════════════════════════════════
+           VISTA 6: GAME OVER
+      ══════════════════════════════════════ -->
       <section id="view-gameover" class="view hidden">
-        <h1 class="main-title">¡JUEGO TERMINADO!</h1>
+        <h1 class="main-title">¡Juego<br/><span class="highlight">Terminado!</span></h1>
 
         <div class="podium">
           <div class="winner-emoji" id="winner-emoji">👑</div>
@@ -208,21 +238,27 @@
         </div>
 
         <div class="summary-container">
-          <h3>Resumen de Palabras</h3>
+          <h3>📋 Resumen de palabras</h3>
           <div id="word-history" class="accordion">
-            <!-- Se llena dinámicamente -->
+            <!-- Llenado dinámicamente -->
           </div>
         </div>
 
-        <button id="btn-replay" class="btn btn-primary">Volver a Jugar</button>
-        <button id="btn-home" class="btn btn-secondary">Salir al Menú</button>
+        <div class="btn-group">
+          <button id="btn-replay" class="btn btn-primary">🔄 Volver a Jugar</button>
+          <button id="btn-home" class="btn btn-secondary">🏠 Menú Principal</button>
+        </div>
       </section>
-    </div>
 
+    </div><!-- /app-container -->
+
+    <!-- ══════════════════════════════════════
+         MODAL: Salir del juego
+    ══════════════════════════════════════ -->
     <div id="exit-modal" class="exit-modal hidden" aria-hidden="true">
       <div class="exit-card">
-        <p class="exit-label">Advertencia</p>
-        <h2>Vas a salir de la partida</h2>
+        <p class="exit-label">⚠️ Advertencia</p>
+        <h2>¿Salir de la partida?</h2>
         <p>Se perderá la conexión con el otro jugador.</p>
         <div class="exit-countdown-wrap">
           <span id="exit-countdown">3</span>
@@ -231,6 +267,20 @@
           Salir
         </button>
         <button id="btn-cancel-exit" class="btn btn-secondary">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════
+         MODAL: Oponente desconectado
+    ══════════════════════ -->
+    <div id="disconnect-modal" class="hidden">
+      <div class="disconnect-card">
+        <span class="disconnect-emoji">😢</span>
+        <h2>Oponente desconectado</h2>
+        <p>Tu oponente abandonó la partida.<br/>La sesión ha terminado.</p>
+        <button id="btn-disconnect-ok" class="btn btn-primary">
+          Volver al menú
+        </button>
       </div>
     </div>
 

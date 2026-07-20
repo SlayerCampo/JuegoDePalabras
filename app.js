@@ -3,17 +3,17 @@ const ALPHABET = "ABCDEFGHIJLMNOPQRSTUV".split(""); // Sin W, X, Y, Z, K
 const EMOJIS = ["😎", "🤖", "👽", "👻", "🤡", "🦊", "🐯", "🐶", "🐱", "🐵"];
 const GAME_MODES = {
   hardcore: {
-    label: "Hardcore",
+    label: "Hardcore 🔥",
     description: "Rondas rápidas: 10s, 5s y 2.5s.",
     roundTimes: [10, 5, 2.5],
   },
   normal: {
-    label: "Normal",
+    label: "Normal ⚡",
     description: "Balanceado: 30s, 15s y 7.5s.",
     roundTimes: [30, 15, 7.5],
   },
   easy: {
-    label: "Fácil",
+    label: "Fácil 🌿",
     description: "Más relajado: 40s, 20s y 10s.",
     roundTimes: [40, 20, 10],
   },
@@ -48,6 +48,21 @@ function getRoundDuration(mode, roundNumber) {
 
 function formatSeconds(seconds) {
   return Number.isInteger(seconds) ? `${seconds}` : seconds.toFixed(1);
+}
+
+// --- Modo oscuro ---
+function initDarkMode() {
+  const saved = localStorage.getItem("palabraBomba_theme");
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const theme = saved || (prefersDark ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", theme);
+
+  document.getElementById("btn-dark-mode").addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme");
+    const next = current === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("palabraBomba_theme", next);
+  });
 }
 
 // --- Clase Principal del Juego ---
@@ -107,7 +122,6 @@ class WordGame {
       console.log(`Diccionario cargado con ${this.dictionary.size} palabras.`);
     } catch (error) {
       console.error("Error al cargar diccionario:", error);
-      // Fallback a un diccionario mínimo si falla la carga local
       this.dictionary = new Set(["arbol", "boca", "casa", "dedo", "elefante"]);
     }
   }
@@ -122,6 +136,21 @@ class WordGame {
       game: document.getElementById("view-game"),
       gameover: document.getElementById("view-gameover"),
     };
+
+    // Selección de modo (pills)
+    document.querySelectorAll(".mode-pill").forEach((pill) => {
+      // Corregir el estado inicial: solo "normal" activo
+      pill.classList.remove("active", "active-default");
+      if (pill.dataset.mode === "normal") pill.classList.add("active");
+
+      pill.addEventListener("click", () => {
+        this.gameMode = pill.dataset.mode;
+        document.querySelectorAll(".mode-pill").forEach((p) =>
+          p.classList.remove("active")
+        );
+        pill.classList.add("active");
+      });
+    });
 
     // Botones de navegación base
     document
@@ -139,17 +168,6 @@ class WordGame {
     document
       .getElementById("btn-join")
       .addEventListener("click", () => this.joinRoom());
-
-    document.querySelectorAll(".mode-option").forEach((button) => {
-      button.addEventListener("click", () => {
-        const selectedMode = button.dataset.mode;
-        this.gameMode = selectedMode;
-
-        document.querySelectorAll(".mode-option").forEach((item) => {
-          item.classList.toggle("active", item === button);
-        });
-      });
-    });
 
     // Perfil
     const btnChangeEmoji = document.getElementById("btn-change-emoji");
@@ -216,6 +234,14 @@ class WordGame {
     document
       .getElementById("btn-confirm-exit")
       .addEventListener("click", () => this.goHome());
+
+    // Modal desconexión
+    document
+      .getElementById("btn-disconnect-ok")
+      .addEventListener("click", () => {
+        document.getElementById("disconnect-modal").classList.add("hidden");
+        this.goHome();
+      });
   }
 
   showView(viewName) {
@@ -314,6 +340,12 @@ class WordGame {
     modal.setAttribute("aria-hidden", "true");
   }
 
+  // ── MODAL BONITO de desconexión (reemplaza el alert nativo) ──
+  showDisconnectModal() {
+    const modal = document.getElementById("disconnect-modal");
+    modal.classList.remove("hidden");
+  }
+
   // --- Red ---
   setupHost(selectedMode = "normal") {
     this.disconnectNetwork();
@@ -340,8 +372,8 @@ class WordGame {
         text: inviteUrl.toString(),
         width: 128,
         height: 128,
-        colorDark: "#120E1F",
-        colorLight: "#00E5FF",
+        colorDark: "#3b0764",
+        colorLight: "#ffffff",
       });
     });
   }
@@ -360,7 +392,7 @@ class WordGame {
     document.getElementById("join-error").classList.add("hidden");
 
     this.network = new PeerNetwork(false, this.handleNetworkMessage.bind(this));
-    this.peerReady = this.network.init(); // Inicializa el peer sin ID específico
+    this.peerReady = this.network.init();
 
     if (this.pendingRoomCode) {
       document.getElementById("room-code-input").value = this.pendingRoomCode;
@@ -404,8 +436,8 @@ class WordGame {
         this.showView("profile");
         break;
       case "DISCONNECTED":
-        alert("El oponente se ha desconectado.");
-        location.reload();
+        // ✅ FIX: Modal bonito en lugar del alert() nativo del navegador
+        this.showDisconnectModal();
         break;
       case "PROFILE_READY":
         this.opponentProfile.name = msg.payload.name;
@@ -437,7 +469,6 @@ class WordGame {
   checkBothReady() {
     if (this.myProfile.isReady && this.opponentProfile.isReady) {
       if (this.isHost) {
-        // Host decide el estado inicial y lo envía
         const initialState = {
           mode: this.gameMode,
           round: 1,
@@ -525,6 +556,7 @@ class WordGame {
     const targetLetter = document.getElementById("target-letter");
 
     roundLabel.innerText = `Ronda ${this.currentRound}`;
+    // ✅ FIX: Mostrar la letra actual correctamente (era "A" estático en el HTML)
     targetLetter.innerText = this.currentLetter;
 
     const actionZone = document.getElementById("action-zone");
@@ -537,7 +569,7 @@ class WordGame {
     document.getElementById("turn-overlay").classList.add("hidden");
 
     if (this.amIActive()) {
-      turnHint.innerText = "Escribe una palabra válida";
+      turnHint.innerText = `Escribe una palabra con "${this.currentLetter}"`;
       actionZone.classList.remove("hidden");
       spectatorZone.classList.add("hidden");
       setTimeout(() => input.focus(), 100);
@@ -593,7 +625,7 @@ class WordGame {
       spark.style.right = `100%`;
     });
 
-    // Solo el jugador activo lleva el timer real de lógica para evitar desincronizaciones dobles
+    // Solo el jugador activo lleva el timer real de lógica
     if (this.amIActive()) {
       if (this.timer) clearTimeout(this.timer);
 
@@ -605,7 +637,11 @@ class WordGame {
 
   updateSpectatorTyping(text) {
     const liveBox = document.getElementById("live-typing");
-    liveBox.innerText = text.length === 0 ? "Esperando..." : text;
+    if (text.length === 0) {
+      liveBox.innerHTML = `<span class="faded">Esperando...</span>`;
+    } else {
+      liveBox.innerText = text;
+    }
   }
 
   verifyWord() {
@@ -617,7 +653,6 @@ class WordGame {
 
     const errorEl = document.getElementById("word-error");
 
-    // Validaciones
     if (fullWord === "") {
       errorEl.innerText = "Escribe algo.";
       errorEl.classList.remove("hidden");
@@ -627,7 +662,6 @@ class WordGame {
     if (!this.dictionary.has(fullWord)) {
       errorEl.innerText = "¡La palabra no existe en el diccionario!";
       errorEl.classList.remove("hidden");
-      // Sacudir input
       inputEl.parentElement.classList.add("shake");
       setTimeout(() => inputEl.parentElement.classList.remove("shake"), 500);
       return;
@@ -651,16 +685,15 @@ class WordGame {
     }
     this.usedWords.add(fullWord);
 
-    // Efecto visual local
     document.body.classList.add("flash-green");
 
-    // Registrar para historial
+    // ✅ FIX: Guardar la letra actual correctamente (era `R${round}`)
     const round = this.currentRound;
     let historyEntry = this.wordHistory.find((h) => h.round === round);
     if (!historyEntry) {
       historyEntry = {
         round,
-        letter: `R${this.currentRound}`,
+        letter: this.currentLetter, // ← CORRECTO: la letra real, no "R1"
         hostWord: "",
         guestWord: "",
       };
@@ -694,7 +727,6 @@ class WordGame {
   }
 
   handleOpponentSuccess(nextState) {
-    // El oponente acertó
     if (this.timerDisplayInterval) {
       clearInterval(this.timerDisplayInterval);
       this.timerDisplayInterval = null;
@@ -723,15 +755,14 @@ class WordGame {
     overlay.classList.remove("hidden");
 
     if (nextState.round > this.currentRound) {
-      turnMessage.innerText = `Cambio de ronda ${nextState.round}`;
-      turnDetail.innerHTML = `Nuevo tiempo: ${formatSeconds(nextRoundDuration)}s por jugada. Sigue <strong>${nextPlayerName}</strong> en <span id="turn-countdown">3</span>...`;
+      turnMessage.innerText = `✨ Ronda ${nextState.round}`;
+      turnDetail.innerHTML = `Nuevo tiempo: <strong>${formatSeconds(nextRoundDuration)}s</strong>. Sigue <strong>${nextPlayerName}</strong> en <span id="turn-countdown">3</span>...`;
     } else {
-      turnMessage.innerText = `Sigue el turno de ${nextPlayerName}`;
+      turnMessage.innerText = `👉 Turno de ${nextPlayerName}`;
       turnDetail.innerHTML = `Comienza en <span id="turn-countdown">3</span>...`;
     }
 
     const countSpan = document.getElementById("turn-countdown");
-
     let count = 3;
     countSpan.innerText = count;
 
@@ -747,7 +778,6 @@ class WordGame {
   }
 
   triggerBoom() {
-    // Se acabó el tiempo
     if (this.timerDisplayInterval) {
       clearInterval(this.timerDisplayInterval);
       this.timerDisplayInterval = null;
@@ -755,7 +785,6 @@ class WordGame {
     this.myProfile.lives--;
     this.updateHeaderUI();
 
-    // Efecto de explosión
     const overlay = document.getElementById("boom-overlay");
     overlay.classList.remove("hidden");
     document.body.classList.add("shake");
@@ -783,7 +812,6 @@ class WordGame {
   }
 
   handleBoom(nextState) {
-    // El oponente perdió por tiempo
     if (this.timerDisplayInterval) {
       clearInterval(this.timerDisplayInterval);
       this.timerDisplayInterval = null;
@@ -803,7 +831,6 @@ class WordGame {
   }
 
   checkGameOverOrContinue(nextState) {
-    // Verificamos si alguien llegó a 0
     if (this.myProfile.lives <= 0 || this.opponentProfile.lives <= 0) {
       const winner =
         this.myProfile.lives > 0
@@ -814,7 +841,6 @@ class WordGame {
             ? "guest"
             : "host";
 
-      // Solo el host envía el GAME_OVER para evitar duplicados
       if (this.isHost) {
         this.network.send("GAME_OVER", { winner, history: this.wordHistory });
       }
@@ -859,39 +885,55 @@ class WordGame {
     const historyContainer = document.getElementById("word-history");
     historyContainer.innerHTML = "";
 
-    this.wordHistory.forEach((round) => {
-      const item = document.createElement("div");
-      item.className = "accordion-item";
+    if (this.wordHistory.length === 0) {
+      historyContainer.innerHTML = `<p style="text-align:center;color:var(--text-muted);font-size:0.9rem;font-family:var(--font-body);">No hay palabras registradas.</p>`;
+    } else {
+      this.wordHistory.forEach((round) => {
+        const item = document.createElement("div");
+        item.className = "accordion-item";
 
-      item.innerHTML = `
-                <div class="accordion-header">
-                    Ronda ${round.round}
-                    <span>▼</span>
-                </div>
-                <div class="accordion-content">
-                    <div class="word-row">
-                        <span class="player">${this.isHost ? this.myProfile.name : this.opponentProfile.name}:</span>
-                        <span>${this.isHost ? round.hostWord || "BOOM 💥" : round.guestWord || "BOOM 💥"}</span>
-                    </div>
-                    <div class="word-row">
-                        <span class="player">${this.isHost ? this.opponentProfile.name : this.myProfile.name}:</span>
-                        <span>${this.isHost ? round.guestWord || "BOOM 💥" : round.hostWord || "BOOM 💥"}</span>
-                    </div>
-                </div>
-            `;
+        const letterBadge = round.letter
+          ? `<span style="
+              background:linear-gradient(135deg,var(--primary),var(--accent));
+              color:white;
+              font-size:0.75rem;
+              font-weight:900;
+              padding:0.15rem 0.5rem;
+              border-radius:8px;
+              margin-left:0.5rem;
+              vertical-align:middle;
+            ">${round.letter}</span>`
+          : "";
 
-      item.querySelector(".accordion-header").addEventListener("click", () => {
-        item.classList.toggle("open");
+        item.innerHTML = `
+          <div class="accordion-header">
+            <span>Ronda ${round.round}${letterBadge}</span>
+            <span style="color:var(--text-muted);font-size:0.85rem;">▼</span>
+          </div>
+          <div class="accordion-content">
+            <div class="word-row">
+              <span class="player">${this.isHost ? this.myProfile.name : this.opponentProfile.name}:</span>
+              <span>${this.isHost ? round.hostWord || "💥 BOOM" : round.guestWord || "💥 BOOM"}</span>
+            </div>
+            <div class="word-row">
+              <span class="player">${this.isHost ? this.opponentProfile.name : this.myProfile.name}:</span>
+              <span>${this.isHost ? round.guestWord || "💥 BOOM" : round.hostWord || "💥 BOOM"}</span>
+            </div>
+          </div>
+        `;
+
+        item.querySelector(".accordion-header").addEventListener("click", () => {
+          item.classList.toggle("open");
+        });
+
+        historyContainer.appendChild(item);
       });
-
-      historyContainer.appendChild(item);
-    });
+    }
 
     this.showView("gameover");
   }
 
   resetGame(isReplay) {
-    // Reset variables visuales
     document.getElementById("btn-ready").classList.remove("hidden");
     document.getElementById("ready-status").classList.add("hidden");
     this.myProfile.isReady = false;
@@ -905,5 +947,6 @@ class WordGame {
 
 // Inicializar al cargar
 window.addEventListener("DOMContentLoaded", () => {
+  initDarkMode();
   const game = new WordGame();
 });
