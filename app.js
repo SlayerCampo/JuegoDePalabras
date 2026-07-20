@@ -1,5 +1,7 @@
 // --- Constantes y Utilidades ---
-const ALPHABET = "ABCDEFGHIJLMNOPQRSTUV".split(""); // Sin W, X, Y, Z, K
+// Las letras disponibles se calculan dinámicamente del diccionario al cargarlo
+let availableLetters = [];
+
 const EMOJIS = ["😎", "🤖", "👽", "👻", "🤡", "🦊", "🐯", "🐶", "🐱", "🐵"];
 const GAME_MODES = {
   hardcore: {
@@ -27,8 +29,20 @@ function limpiarTexto(texto) {
     .toLowerCase();
 }
 
-function getRandomLetter() {
-  return ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+// Genera una letra aleatoria de las disponibles en el diccionario cargado
+// Evita repetir la letra actual si hay más opciones
+function getRandomLetter(currentLetter = null) {
+  if (availableLetters.length === 0) {
+    // Fallback por si el diccionario aún no cargó
+    const fallback = "ABCDEFGHIJLMNOPQRSTUV".split("");
+    return fallback[Math.floor(Math.random() * fallback.length)];
+  }
+  if (availableLetters.length === 1) return availableLetters[0];
+  let pool = currentLetter
+    ? availableLetters.filter((l) => l !== currentLetter)
+    : availableLetters;
+  if (pool.length === 0) pool = availableLetters;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function getRoundNumber(turnCount) {
@@ -120,9 +134,23 @@ class WordGame {
       const words = await response.json();
       words.forEach((w) => this.dictionary.add(limpiarTexto(w)));
       console.log(`Diccionario cargado con ${this.dictionary.size} palabras.`);
+
+      // Calcular las letras disponibles según el diccionario
+      const lettersInDict = new Set();
+      this.dictionary.forEach((word) => {
+        if (word.length > 0) {
+          lettersInDict.add(word[0].toUpperCase());
+        }
+      });
+      availableLetters = Array.from(lettersInDict).sort();
+      console.log(`Letras disponibles: ${availableLetters.join(", ")}`);
+
+      // Actualizar la letra inicial con el diccionario ya cargado
+      this.currentLetter = getRandomLetter();
     } catch (error) {
       console.error("Error al cargar diccionario:", error);
       this.dictionary = new Set(["arbol", "boca", "casa", "dedo", "elefante"]);
+      availableLetters = ["A", "B", "C", "D", "E"];
     }
   }
 
@@ -659,6 +687,16 @@ class WordGame {
       return;
     }
 
+    // Validar que empiece con la letra actual
+    const letraRequerida = limpiarTexto(this.currentLetter);
+    if (!fullWord.startsWith(letraRequerida)) {
+      errorEl.innerText = `¡La palabra debe empezar con "${this.currentLetter}"!`;
+      errorEl.classList.remove("hidden");
+      inputEl.parentElement.classList.add("shake");
+      setTimeout(() => inputEl.parentElement.classList.remove("shake"), 500);
+      return;
+    }
+
     if (!this.dictionary.has(fullWord)) {
       errorEl.innerText = "¡La palabra no existe en el diccionario!";
       errorEl.classList.remove("hidden");
@@ -714,8 +752,8 @@ class WordGame {
       lastWord: fullWord,
       history: this.wordHistory,
       mode: this.gameMode,
-      currentLetter:
-        nextRound > this.currentRound ? getRandomLetter() : this.currentLetter,
+      // La letra cambia en cada turno (siempre distinta a la actual)
+      currentLetter: getRandomLetter(this.currentLetter),
     };
 
     this.network.send("WORD_VALIDATED", nextState);
@@ -798,8 +836,8 @@ class WordGame {
       loser: this.isHost ? "host" : "guest",
       livesRemaining: this.myProfile.lives,
       mode: this.gameMode,
-      currentLetter:
-        nextRound > this.currentRound ? getRandomLetter() : this.currentLetter,
+      // La letra cambia siempre (incluso tras BOOM)
+      currentLetter: getRandomLetter(this.currentLetter),
     };
 
     this.network.send("BOOM", nextState);
@@ -851,15 +889,11 @@ class WordGame {
   }
 
   applyNextState(nextState) {
-    const previousRound = this.currentRound;
     this.turnCount = nextState.turnCount;
     this.activePlayer = nextState.activePlayer;
     this.currentRound = nextState.round || getRoundNumber(this.turnCount);
-    this.currentLetter =
-      nextState.currentLetter ||
-      (this.currentRound > previousRound
-        ? getRandomLetter()
-        : this.currentLetter);
+    // La letra siempre viene en el nextState (cambia cada turno)
+    this.currentLetter = nextState.currentLetter;
     if (nextState.history) this.wordHistory = nextState.history;
     this.updateHeaderUI();
     this.startTurn();

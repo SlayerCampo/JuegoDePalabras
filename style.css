@@ -102,6 +102,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ── Body ── */
@@ -315,12 +316,7 @@ body::after {
 }
 .mode-pill[data-mode="hardcore"].active .pill-name { color: var(--danger-dark); }
 
-/* Por defecto al cargar: normal activo */
-.mode-pill[data-mode="normal"] {
-  border-color: var(--primary-dark);
-  background: var(--primary-glow);
-  box-shadow: 0 0 0 2px rgba(192,132,252,0.35), var(--shadow-sm);
-}
+
 
 /* Compatibilidad con clases viejas (.mode-option .mode-grid) */
 .mode-grid { display: none; }
