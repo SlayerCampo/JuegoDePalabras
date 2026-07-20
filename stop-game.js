@@ -651,7 +651,10 @@ class StopGame {
           if (this.votes[cat].rep.myVote && !this.votes[cat].rep.resolved) {
             this.votes[cat].rep.myVote = null;
             const repBtn = document.getElementById(`rep-btn-${cat}`);
-            if (repBtn) repBtn.classList.remove('selected-rep');
+            if (repBtn) {
+              repBtn.classList.remove('selected-rep');
+              repBtn.disabled = false;
+            }
             const repStatus = document.getElementById(`rep-status-${cat}`);
             if (repStatus) repStatus.innerHTML = '';
           }
@@ -679,7 +682,10 @@ class StopGame {
 
     // Resaltar el botón
     const btn = document.getElementById(`rep-btn-${cat}`);
-    if (btn) btn.classList.add('selected-rep');
+    if (btn) {
+      btn.classList.add('selected-rep');
+      btn.disabled = true;
+    }
 
     // Mostrar espera
     const repStatus = document.getElementById(`rep-status-${cat}`);
@@ -801,13 +807,32 @@ class StopGame {
       const repEntry = this.votes[cat].rep;
       if (repEntry.resolved) return;
       repEntry.oppVote = vote;
+      this._showOpponentBadge(cat, 'rep', 'rep');
       this._tryResolveRepVote(cat);
       return;
     }
 
+    // Si el oponente vota individualmente, cancelamos su voto de repetida si lo tenía
+    if (this.votes[cat].rep.oppVote && !this.votes[cat].rep.resolved) {
+      this.votes[cat].rep.oppVote = null;
+      const repBtn = document.getElementById(`rep-btn-${cat}`);
+      if (repBtn) {
+        const badge = repBtn.querySelector('.stop-opp-badge');
+        if (badge) badge.remove();
+      }
+    }
+
     const voteEntry = this.votes[cat][side];
     if (!voteEntry || voteEntry.resolved) return;
+    
+    // Remover badge previo si cambió de voto
+    const btnsDiv = document.getElementById(`vote-btns-${cat}-${side}`);
+    if (btnsDiv) {
+      btnsDiv.querySelectorAll('.stop-opp-badge').forEach(b => b.remove());
+    }
+    
     voteEntry.oppVote = vote;
+    this._showOpponentBadge(cat, side, vote);
     this._tryResolveVote(cat, side);
   }
 
@@ -842,9 +867,13 @@ class StopGame {
       voteEntry.oppVote = null;
 
       const btnsDiv = document.getElementById(`vote-btns-${cat}-${side}`);
-      if (btnsDiv) btnsDiv.querySelectorAll('.stop-vote-btn').forEach(b =>
-        b.classList.remove('selected-yes','selected-no','selected-rep')
-      );
+      if (btnsDiv) {
+        btnsDiv.querySelectorAll('.stop-vote-btn').forEach(b => {
+          b.classList.remove('selected-yes','selected-no','selected-rep');
+          const badge = b.querySelector('.stop-opp-badge');
+          if (badge) badge.remove();
+        });
+      }
 
       const statusDiv = document.getElementById(`vote-status-${cat}-${side}`);
       if (statusDiv) {
@@ -918,14 +947,14 @@ class StopGame {
           <span>${this.myProfile.emoji}</span>
           <span>${this.myProfile.name}</span>
         </div>
-        <div class="stop-score-value">${myPts}</div>
+        <div class="stop-score-value" id="round-my-pts">0</div>
       </div>
       <div class="stop-score-row">
         <div class="stop-score-player">
           <span>${this.opponentProfile.emoji}</span>
           <span>${this.opponentProfile.name}</span>
         </div>
-        <div class="stop-score-value">${oppPts}</div>
+        <div class="stop-score-value" id="round-opp-pts">0</div>
       </div>
       <div class="stop-score-row" style="margin-top:0.5rem;border-top:1px solid var(--border);padding-top:0.5rem;">
         <div class="stop-score-player" style="font-weight:700;color:var(--text-sub);">
@@ -937,16 +966,22 @@ class StopGame {
           <span>${this.myProfile.emoji}</span>
           <span>${this.myProfile.name}</span>
         </div>
-        <div class="stop-score-value">${this.myTotalScore}</div>
+        <div class="stop-score-value" id="total-my-pts">${this.myTotalScore - myPts}</div>
       </div>
       <div class="stop-score-row">
         <div class="stop-score-player">
           <span>${this.opponentProfile.emoji}</span>
           <span>${this.opponentProfile.name}</span>
         </div>
-        <div class="stop-score-value">${this.opponentTotalScore}</div>
+        <div class="stop-score-value" id="total-opp-pts">${this.opponentTotalScore - oppPts}</div>
       </div>
     `;
+
+    // Animar los números
+    this._animateValue(document.getElementById('round-my-pts'), 0, myPts, 1200);
+    this._animateValue(document.getElementById('round-opp-pts'), 0, oppPts, 1200);
+    this._animateValue(document.getElementById('total-my-pts'), this.myTotalScore - myPts, this.myTotalScore, 1200);
+    this._animateValue(document.getElementById('total-opp-pts'), this.opponentTotalScore - oppPts, this.opponentTotalScore, 1200);
 
     // Mostrar botón solo para host, guest espera
     if (this.isHost) {
@@ -956,6 +991,10 @@ class StopGame {
       document.getElementById('btn-stop-next-round').classList.add('hidden');
       document.getElementById('stop-waiting-next').classList.remove('hidden');
     }
+
+    setTimeout(() => {
+      board.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 100);
   }
 
   _onNextRoundClick() {
@@ -1056,9 +1095,51 @@ class StopGame {
     `;
 
     this.showView('view-stop-gameover');
+    
+    setTimeout(() => {
+      const finalBoard = document.getElementById('stop-final-scoreboard');
+      if (finalBoard) finalBoard.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 100);
   }
 
   // ── Helpers ──────────────────────────────────
+  _animateValue(element, start, end, duration) {
+    if (!element) return;
+    if (start === end) {
+      element.innerText = end;
+      return;
+    }
+    let startTimestamp = null;
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      const current = Math.floor(progress * (end - start) + start);
+      element.innerText = current;
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      } else {
+        element.innerText = end;
+      }
+    };
+    window.requestAnimationFrame(step);
+  }
+
+  _showOpponentBadge(cat, side, vote) {
+    const oppEmoji = this.opponentProfile.emoji;
+    const badgeHtml = `<div class="stop-opp-badge">${oppEmoji}</div>`;
+    if (side === 'rep') {
+      const btn = document.getElementById(`rep-btn-${cat}`);
+      if (btn && !btn.querySelector('.stop-opp-badge')) {
+        btn.insertAdjacentHTML('beforeend', badgeHtml);
+      }
+    } else {
+      const btn = document.querySelector(`.stop-vote-btn[data-cat="${cat}"][data-side="${side}"][data-vote="${vote}"]`);
+      if (btn && !btn.querySelector('.stop-opp-badge')) {
+        btn.insertAdjacentHTML('beforeend', badgeHtml);
+      }
+    }
+  }
+
   _goHome() {
     this._disconnectNetwork();
     this._resetState();
