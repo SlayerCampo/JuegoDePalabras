@@ -83,6 +83,7 @@ class WordGame {
     this.turnCount = 1;
     this.activePlayer = "host"; // 'host' o 'guest'
     this.currentRound = 1;
+    this.currentLetter = getRandomLetter();
     this.timer = null;
     this.mechaAnimation = null;
     this.timeLeft = 0;
@@ -241,6 +242,7 @@ class WordGame {
     this.turnCount = 1;
     this.activePlayer = "host";
     this.currentRound = 1;
+    this.currentLetter = getRandomLetter();
     this.timer = null;
     if (this.timerDisplayInterval) {
       clearInterval(this.timerDisplayInterval);
@@ -441,6 +443,7 @@ class WordGame {
           round: 1,
           turnCount: 1,
           activePlayer: "host",
+          currentLetter: this.currentLetter,
         };
         this.network.send("START_GAME", initialState);
         this.startGameSession(initialState);
@@ -455,6 +458,7 @@ class WordGame {
     this.turnCount = state.turnCount;
     this.activePlayer = state.activePlayer;
     this.currentRound = state.round || getRoundNumber(this.turnCount);
+    this.currentLetter = state.currentLetter || getRandomLetter();
     this.gameActive = true;
     this.usedWords.clear();
     this.wordHistory = [];
@@ -521,7 +525,7 @@ class WordGame {
     const targetLetter = document.getElementById("target-letter");
 
     roundLabel.innerText = `Ronda ${this.currentRound}`;
-    targetLetter.innerText = `R${this.currentRound}`;
+    targetLetter.innerText = this.currentLetter;
 
     const actionZone = document.getElementById("action-zone");
     const spectatorZone = document.getElementById("spectator-zone");
@@ -677,6 +681,8 @@ class WordGame {
       lastWord: fullWord,
       history: this.wordHistory,
       mode: this.gameMode,
+      currentLetter:
+        nextRound > this.currentRound ? getRandomLetter() : this.currentLetter,
     };
 
     this.network.send("WORD_VALIDATED", nextState);
@@ -763,6 +769,8 @@ class WordGame {
       loser: this.isHost ? "host" : "guest",
       livesRemaining: this.myProfile.lives,
       mode: this.gameMode,
+      currentLetter:
+        nextRound > this.currentRound ? getRandomLetter() : this.currentLetter,
     };
 
     this.network.send("BOOM", nextState);
@@ -817,9 +825,15 @@ class WordGame {
   }
 
   applyNextState(nextState) {
+    const previousRound = this.currentRound;
     this.turnCount = nextState.turnCount;
     this.activePlayer = nextState.activePlayer;
     this.currentRound = nextState.round || getRoundNumber(this.turnCount);
+    this.currentLetter =
+      nextState.currentLetter ||
+      (this.currentRound > previousRound
+        ? getRandomLetter()
+        : this.currentLetter);
     if (nextState.history) this.wordHistory = nextState.history;
     this.updateHeaderUI();
     this.startTurn();
