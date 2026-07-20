@@ -174,6 +174,19 @@ body::after {
   pointer-events: all;
   transform: translateY(0) scale(1);
 }
+/* Home: más contenido, permitir scroll y alinear al top */
+#view-home {
+  justify-content: flex-start;
+  padding-top: 3.5rem;
+  padding-bottom: 2rem;
+  overflow-y: auto;
+  height: auto;
+  min-height: 100%;
+}
+#view-home .main-title { margin-bottom: 0.4rem; }
+#view-home .subtitle   { margin-bottom: 1.2rem; font-size: 0.9rem; }
+#view-home .mode-panel { margin-bottom: 1rem; }
+#view-home .mode-panel-title { margin-bottom: 0.5rem; }
 .hidden { display: none !important; }
 
 /* ── Botón modo oscuro ── */
@@ -316,10 +329,87 @@ body::after {
 }
 .mode-pill[data-mode="hardcore"].active .pill-name { color: var(--danger-dark); }
 
+/* ── Letter-mode pills: 2 columnas ── */
+.letter-mode-pills {
+  grid-template-columns: repeat(2, 1fr) !important;
+}
+/* Activo: por-ronda */
+.mode-pill[data-letter-mode="por-ronda"].active {
+  border-color: var(--secondary);
+  background: var(--secondary-glow);
+  box-shadow: 0 0 0 2px rgba(103,232,249,0.35), var(--shadow-sm);
+}
+.mode-pill[data-letter-mode="por-ronda"].active .pill-name { color: #0891b2; }
+[data-theme="dark"] .mode-pill[data-letter-mode="por-ronda"].active .pill-name { color: var(--secondary); }
+/* Activo: por-turno */
+.mode-pill[data-letter-mode="por-turno"].active {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  box-shadow: 0 0 0 2px rgba(249,168,212,0.38), var(--shadow-sm);
+}
+.mode-pill[data-letter-mode="por-turno"].active .pill-name { color: #db2777; }
+[data-theme="dark"] .mode-pill[data-letter-mode="por-turno"].active .pill-name { color: var(--accent); }
 
+/* ── Category grid ── */
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+}
+.category-pill {
+  background: var(--bg-card);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.3rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.category-pill .pill-emoji { font-size: 1.3rem; line-height: 1; }
+.category-pill .pill-name {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: 0.2px;
+}
+/* Activo: todo */
+.category-pill[data-category="todo"].active {
+  border-color: var(--primary-dark);
+  background: var(--primary-glow);
+  box-shadow: 0 0 0 2px rgba(192,132,252,0.35), var(--shadow-sm);
+}
+.category-pill[data-category="todo"].active .pill-name { color: var(--primary-dark); }
+/* Coming soon */
+.category-pill.coming-soon {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.category-pill.coming-soon:hover { transform: none; box-shadow: var(--shadow-sm); }
+.soon-badge {
+  position: absolute;
+  top: 3px; right: 3px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  font-size: 0.48rem;
+  font-weight: 900;
+  padding: 0.12rem 0.3rem;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
 
 /* Compatibilidad con clases viejas (.mode-option .mode-grid) */
 .mode-grid { display: none; }
+
+
 
 /* ── Título de sección ── */
 .section-title {

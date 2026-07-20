@@ -113,6 +113,7 @@ class WordGame {
     this.activePlayer = "host"; // 'host' o 'guest'
     this.currentRound = 1;
     this.currentLetter = getRandomLetter();
+    this.letterMode = "por-ronda"; // 'por-ronda' | 'por-turno'
     this.timer = null;
     this.mechaAnimation = null;
     this.timeLeft = 0;
@@ -165,15 +166,22 @@ class WordGame {
       gameover: document.getElementById("view-gameover"),
     };
 
-    // Selección de modo (pills)
-    document.querySelectorAll(".mode-pill").forEach((pill) => {
-      // Corregir el estado inicial: solo "normal" activo
-      pill.classList.remove("active", "active-default");
-      if (pill.dataset.mode === "normal") pill.classList.add("active");
-
+    // Selección de DIFICULTAD (pills con data-mode)
+    document.querySelectorAll(".mode-pill[data-mode]").forEach((pill) => {
       pill.addEventListener("click", () => {
         this.gameMode = pill.dataset.mode;
-        document.querySelectorAll(".mode-pill").forEach((p) =>
+        document.querySelectorAll(".mode-pill[data-mode]").forEach((p) =>
+          p.classList.remove("active")
+        );
+        pill.classList.add("active");
+      });
+    });
+
+    // Selección de MODO DE LETRA (pills con data-letter-mode)
+    document.querySelectorAll(".letter-pill[data-letter-mode]").forEach((pill) => {
+      pill.addEventListener("click", () => {
+        this.letterMode = pill.dataset.letterMode;
+        document.querySelectorAll(".letter-pill[data-letter-mode]").forEach((p) =>
           p.classList.remove("active")
         );
         pill.classList.add("active");
@@ -499,6 +507,7 @@ class WordGame {
       if (this.isHost) {
         const initialState = {
           mode: this.gameMode,
+          letterMode: this.letterMode,
           round: 1,
           turnCount: 1,
           activePlayer: "host",
@@ -513,6 +522,9 @@ class WordGame {
   startGameSession(state) {
     if (state.mode && GAME_MODES[state.mode]) {
       this.gameMode = state.mode;
+    }
+    if (state.letterMode) {
+      this.letterMode = state.letterMode;
     }
     this.turnCount = state.turnCount;
     this.activePlayer = state.activePlayer;
@@ -752,8 +764,14 @@ class WordGame {
       lastWord: fullWord,
       history: this.wordHistory,
       mode: this.gameMode,
-      // La letra cambia en cada turno (siempre distinta a la actual)
-      currentLetter: getRandomLetter(this.currentLetter),
+      letterMode: this.letterMode,
+      // Cambio de letra según el modo elegido
+      currentLetter:
+        this.letterMode === "por-turno"
+          ? getRandomLetter(this.currentLetter)          // cambia cada turno
+          : nextRound > this.currentRound                // por-ronda: solo al cambiar ronda
+            ? getRandomLetter(this.currentLetter)
+            : this.currentLetter,
     };
 
     this.network.send("WORD_VALIDATED", nextState);
@@ -836,8 +854,14 @@ class WordGame {
       loser: this.isHost ? "host" : "guest",
       livesRemaining: this.myProfile.lives,
       mode: this.gameMode,
-      // La letra cambia siempre (incluso tras BOOM)
-      currentLetter: getRandomLetter(this.currentLetter),
+      letterMode: this.letterMode,
+      // Cambio de letra según el modo elegido (tras BOOM siempre cambia, es un reset)
+      currentLetter:
+        this.letterMode === "por-turno"
+          ? getRandomLetter(this.currentLetter)
+          : nextRound > this.currentRound
+            ? getRandomLetter(this.currentLetter)
+            : this.currentLetter,
     };
 
     this.network.send("BOOM", nextState);
@@ -892,8 +916,9 @@ class WordGame {
     this.turnCount = nextState.turnCount;
     this.activePlayer = nextState.activePlayer;
     this.currentRound = nextState.round || getRoundNumber(this.turnCount);
-    // La letra siempre viene en el nextState (cambia cada turno)
     this.currentLetter = nextState.currentLetter;
+    // Sincronizar letterMode si viene en el estado (ambos jugadores en sync)
+    if (nextState.letterMode) this.letterMode = nextState.letterMode;
     if (nextState.history) this.wordHistory = nextState.history;
     this.updateHeaderUI();
     this.startTurn();

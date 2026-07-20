@@ -39,7 +39,7 @@
 
         <!-- Selector de dificultad (pills) -->
         <div class="mode-panel">
-          <p class="mode-panel-title">Elige la dificultad</p>
+          <p class="mode-panel-title">⏱ Dificultad</p>
           <div class="mode-pills">
             <button class="mode-pill" data-mode="easy" type="button">
               <span class="pill-emoji">🌿</span>
@@ -59,6 +59,54 @@
           </div>
         </div>
 
+        <!-- Selector de modo de letra -->
+        <div class="mode-panel">
+          <p class="mode-panel-title">🔤 Cambio de letra</p>
+          <div class="mode-pills letter-mode-pills">
+            <button class="mode-pill letter-pill active" data-letter-mode="por-ronda" type="button">
+              <span class="pill-emoji">🔄</span>
+              <span class="pill-name">Por ronda</span>
+              <span class="pill-times">Letra fija por ronda<br>3 letras en total</span>
+            </button>
+            <button class="mode-pill letter-pill" data-letter-mode="por-turno" type="button">
+              <span class="pill-emoji">🎲</span>
+              <span class="pill-name">Por turno</span>
+              <span class="pill-times">Nueva letra en<br>cada jugada</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Categorías (próximamente) -->
+        <div class="mode-panel">
+          <p class="mode-panel-title">📂 Categoría</p>
+          <div class="category-grid">
+            <button class="category-pill active" data-category="todo" type="button">
+              <span class="pill-emoji">🌍</span>
+              <span class="pill-name">Todo</span>
+            </button>
+            <button class="category-pill coming-soon" type="button" disabled>
+              <span class="pill-emoji">🐾</span>
+              <span class="pill-name">Animales</span>
+              <span class="soon-badge">Próx.</span>
+            </button>
+            <button class="category-pill coming-soon" type="button" disabled>
+              <span class="pill-emoji">📦</span>
+              <span class="pill-name">Objetos</span>
+              <span class="soon-badge">Próx.</span>
+            </button>
+            <button class="category-pill coming-soon" type="button" disabled>
+              <span class="pill-emoji">👤</span>
+              <span class="pill-name">Nombres</span>
+              <span class="soon-badge">Próx.</span>
+            </button>
+            <button class="category-pill coming-soon" type="button" disabled>
+              <span class="pill-emoji">🏷️</span>
+              <span class="pill-name">Apellidos</span>
+              <span class="soon-badge">Próx.</span>
+            </button>
+          </div>
+        </div>
+
         <div class="btn-group">
           <button id="btn-host" class="btn btn-primary">Crear Sala</button>
           <button id="btn-guest" class="btn btn-secondary">
@@ -66,6 +114,7 @@
           </button>
         </div>
       </section>
+
 
       <!-- ══════════════════════════════════════
            VISTA 2: LOBBY
