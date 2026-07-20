@@ -539,10 +539,10 @@ class StopGame {
     this.votes = {};
     this.selectedCats.forEach(cat => {
       this.votes[cat] = {
-        // Votos sobre la respuesta del host
-        host: { myVote: null, oppVote: null, resolved: false, pts: null },
-        // Votos sobre la respuesta del guest
+        host:  { myVote: null, oppVote: null, resolved: false, pts: null },
         guest: { myVote: null, oppVote: null, resolved: false, pts: null },
+        // Voto compartido de "Repetida" para toda la categoría
+        rep:   { myVote: null, oppVote: null, resolved: false },
       };
     });
 
@@ -562,6 +562,18 @@ class StopGame {
       card.style.animationDelay = `${idx * 0.07}s`;
       card.id = `review-card-${cat}`;
 
+      // Mostrar botón Repetida solo si ninguna respuesta está vacía
+      const bothHaveAnswer = hostAns.trim() && guestAns.trim();
+      const repSection = bothHaveAnswer ? `
+        <div class="stop-rep-section" id="rep-section-${cat}">
+          <button class="stop-rep-btn" id="rep-btn-${cat}" data-cat="${cat}">
+            <span class="stop-rep-btn-icon">🔁</span>
+            <span class="stop-rep-btn-text">Repetida — ambas respuestas son iguales</span>
+          </button>
+          <div id="rep-status-${cat}"></div>
+        </div>
+      ` : '';
+
       card.innerHTML = `
         <div class="stop-review-card-header">
           <span class="cat-emoji">${info.emoji}</span>
@@ -570,13 +582,13 @@ class StopGame {
         </div>
         ${this._buildPlayerRow('host', cat, hostAns)}
         ${this._buildPlayerRow('guest', cat, guestAns)}
+        ${repSection}
       `;
       list.appendChild(card);
 
-      // Asignar listeners de votos
-      this.selectedCats.forEach(() => {});
       this._attachVoteListeners(cat, 'host', hostAns);
       this._attachVoteListeners(cat, 'guest', guestAns);
+      if (bothHaveAnswer) this._attachRepListener(cat);
 
       // Si una respuesta está vacía → auto 0 sin votación
       if (!hostAns.trim())  this._autoResolveEmpty(cat, 'host');
@@ -597,6 +609,7 @@ class StopGame {
     const ansClass = isEmpty ? 'stop-review-answer empty' : 'stop-review-answer';
     const ansText  = isEmpty ? '(sin respuesta)' : answer;
 
+    // Solo Válida / No válida — Repetida está en botón compartido de la tarjeta
     const voteBtns = isEmpty ? '' : `
       <div class="stop-vote-btns" id="vote-btns-${cat}-${side}">
         <button class="stop-vote-btn" data-vote="si"  data-cat="${cat}" data-side="${side}">
@@ -604,9 +617,6 @@ class StopGame {
         </button>
         <button class="stop-vote-btn" data-vote="no"  data-cat="${cat}" data-side="${side}">
           <span class="vote-emoji">❌</span><span class="vote-label">No válida</span>
-        </button>
-        <button class="stop-vote-btn" data-vote="rep" data-cat="${cat}" data-side="${side}">
-          <span class="vote-emoji">🔁</span><span class="vote-label">Repetida</span>
         </button>
       </div>
       <div id="vote-status-${cat}-${side}"></div>
@@ -625,16 +635,116 @@ class StopGame {
   }
 
   _attachVoteListeners(cat, side, answer) {
-    if (!answer.trim()) return; // Sin respuesta = sin votación
+    if (!answer.trim()) return;
     const card = document.getElementById(`review-card-${cat}`);
     if (!card) return;
+    // Solo botones Válida/No válida (sin rep)
     card.querySelectorAll(`.stop-vote-btn[data-cat="${cat}"][data-side="${side}"]`)
       .forEach(btn => {
         btn.addEventListener('click', () => {
-          const vote = btn.dataset.vote;
-          this._castVote(cat, side, vote);
+          // Si había un voto de repetida pendiente, cancelarlo localmente
+          if (this.votes[cat].rep.myVote && !this.votes[cat].rep.resolved) {
+            this.votes[cat].rep.myVote = null;
+            const repBtn = document.getElementById(`rep-btn-${cat}`);
+            if (repBtn) repBtn.classList.remove('selected-rep');
+            const repStatus = document.getElementById(`rep-status-${cat}`);
+            if (repStatus) repStatus.innerHTML = '';
+          }
+          this._castVote(cat, side, btn.dataset.vote);
         });
       });
+  }
+
+  // Listener para el botón compartido de Repetida
+  _attachRepListener(cat) {
+    const btn = document.getElementById(`rep-btn-${cat}`);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      this._castRepVote(cat);
+    });
+  }
+
+  // Voto de Repetida a nivel de categoría
+  _castRepVote(cat) {
+    const repEntry = this.votes[cat].rep;
+    if (repEntry.resolved) return;
+    if (repEntry.myVote) return; // Ya voté repetida, no repetir
+
+    repEntry.myVote = 'rep';
+
+    // Resaltar el botón
+    const btn = document.getElementById(`rep-btn-${cat}`);
+    if (btn) btn.classList.add('selected-rep');
+
+    // Mostrar espera
+    const repStatus = document.getElementById(`rep-status-${cat}`);
+    if (repStatus) {
+      repStatus.innerHTML = `<div class="stop-vote-waiting">Esperando al otro jugador...</div>`;
+    }
+
+    // Enviar al oponente
+    this.network.send('STOP_VOTE', { cat, side: 'rep', vote: 'rep' });
+
+    this._tryResolveRepVote(cat);
+  }
+
+  // Resolver el voto de Repetida cuando ambos han votado
+  _tryResolveRepVote(cat) {
+    const repEntry = this.votes[cat].rep;
+    if (!repEntry.myVote || !repEntry.oppVote) return;
+    if (repEntry.resolved) return;
+
+    if (repEntry.myVote === 'rep' && repEntry.oppVote === 'rep') {
+      // ¡Acuerdo! — ambas respuestas son repetidas
+      repEntry.resolved = true;
+
+      // Marcar host y guest como resueltos con 50 pts cada uno
+      this.votes[cat].host.resolved  = true;
+      this.votes[cat].host.pts       = 50;
+      this.votes[cat].guest.resolved = true;
+      this.votes[cat].guest.pts      = 50;
+
+      // Sumar 50 pts a ambos UNA SOLA VEZ
+      this._roundPts.host  = (this._roundPts.host  || 0) + 50;
+      this._roundPts.guest = (this._roundPts.guest || 0) + 50;
+
+      // UI: ocultar botones individuales y mostrar resultado en ambas filas
+      ['host', 'guest'].forEach(side => {
+        const btnsDiv = document.getElementById(`vote-btns-${cat}-${side}`);
+        if (btnsDiv) btnsDiv.style.display = 'none';
+        const statusDiv = document.getElementById(`vote-status-${cat}-${side}`);
+        if (statusDiv) {
+          statusDiv.innerHTML = `
+            <div class="stop-vote-result result-rep">
+              <span>🔁 Repetida</span>
+              <span class="stop-vote-result-pts">+50</span>
+            </div>
+          `;
+        }
+      });
+
+      // UI: actualizar botón compartido
+      const repBtn = document.getElementById(`rep-btn-${cat}`);
+      if (repBtn) {
+        repBtn.disabled = true;
+        repBtn.classList.add('selected-rep');
+      }
+      const repStatus = document.getElementById(`rep-status-${cat}`);
+      if (repStatus) {
+        repStatus.innerHTML = `
+          <div class="stop-vote-result result-rep" style="margin-top:0.4rem;">
+            <span>✅ ¡Ambos de acuerdo! Respuestas repetidas</span>
+            <span class="stop-vote-result-pts">+50 c/u</span>
+          </div>
+        `;
+      }
+
+      // Actualizar estado de la tarjeta
+      const cardStatus = document.getElementById(`card-status-${cat}`);
+      if (cardStatus) cardStatus.innerText = '🔁 Repetida';
+
+      this._checkAllResolved();
+    }
   }
 
   _autoResolveEmpty(cat, side) {
@@ -679,10 +789,19 @@ class StopGame {
 
   _receiveOpponentVote(payload) {
     const { cat, side, vote } = payload;
-    if (!this.votes[cat] || !this.votes[cat][side]) return;
-    const voteEntry = this.votes[cat][side];
-    if (voteEntry.resolved) return;
+    if (!this.votes[cat]) return;
 
+    if (side === 'rep') {
+      // Voto de Repetida compartido
+      const repEntry = this.votes[cat].rep;
+      if (repEntry.resolved) return;
+      repEntry.oppVote = vote;
+      this._tryResolveRepVote(cat);
+      return;
+    }
+
+    const voteEntry = this.votes[cat][side];
+    if (!voteEntry || voteEntry.resolved) return;
     voteEntry.oppVote = vote;
     this._tryResolveVote(cat, side);
   }
@@ -737,8 +856,7 @@ class StopGame {
     if (!statusDiv) return;
 
     let cls = 'result-no', icon = '❌', text = 'No válida', ptsText = '+0';
-    if (type === 'si')    { cls = 'result-yes'; icon = '✅'; text = 'Válida';    ptsText = `+${pts}`; }
-    if (type === 'rep')   { cls = 'result-rep'; icon = '🔁'; text = 'Repetida';  ptsText = `+${pts} (ambos)`; }
+    if (type === 'si')    { cls = 'result-yes'; icon = '✅'; text = 'Válida';       ptsText = `+${pts}`; }
     if (type === 'empty') { cls = 'result-empty'; icon = '—'; text = 'Sin respuesta'; ptsText = '+0'; }
 
     statusDiv.innerHTML = `
@@ -748,14 +866,11 @@ class StopGame {
       </div>
     `;
 
-    // Acumular puntos de ronda
-    if (type === 'rep') {
-      this._roundPts.host  = (this._roundPts.host  || 0) + 50;
-      this._roundPts.guest = (this._roundPts.guest || 0) + 50;
-    } else if (type === 'si') {
+    // Acumular puntos (solo Válida = 100; No válida y empty = 0)
+    if (type === 'si') {
       this._roundPts[side] = (this._roundPts[side] || 0) + 100;
     }
-    // 'no' y 'empty' = 0 puntos, no se acumula nada
+    // 'rep' nunca llega aquí — se maneja en _tryResolveRepVote
   }
 
   _checkAllResolved() {

@@ -1746,6 +1746,50 @@ body::after {
   text-align: center;
 }
 
+/* ── Botón compartido de Repetida (a nivel de tarjeta) ── */
+.stop-rep-section {
+  padding: 0.7rem 1rem;
+  border-top: 1px dashed var(--border);
+  background: rgba(234,179,8,0.04);
+}
+.stop-rep-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--bg-card);
+  border: 1.5px dashed rgba(234,179,8,0.45);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ca8a04;
+  transition: var(--transition-fast);
+}
+.stop-rep-btn:hover:not(:disabled) {
+  background: rgba(234,179,8,0.10);
+  border-color: #eab308;
+  transform: translateY(-1px);
+}
+.stop-rep-btn:active:not(:disabled) { transform: scale(0.98); }
+.stop-rep-btn.selected-rep {
+  background: rgba(234,179,8,0.15);
+  border-color: #eab308;
+  border-style: solid;
+  color: #ca8a04;
+}
+.stop-rep-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+.stop-rep-btn-icon { font-size: 1.1rem; }
+.stop-rep-btn-text { flex: 1; text-align: left; }
+[data-theme="dark"] .stop-rep-btn { color: #fbbf24; }
+[data-theme="dark"] .stop-rep-btn.selected-rep { color: #fbbf24; background: rgba(234,179,8,0.12); }
+
 /* Tablero de ronda */
 .stop-round-scoreboard {
   background: var(--bg-card);
