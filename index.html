@@ -1,160 +1,225 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>¡Palabra Bomba!</title>
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
     <!-- CSS -->
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
     <div class="app-container">
-        
-        <!-- VISTA 1: INICIO -->
-        <section id="view-home" class="view active">
-            <h1 class="main-title">¡PALABRA <br><span class="highlight">BOMBA!</span></h1>
-            <p class="subtitle">Agilidad mental, tiempo en contra y muchas palabras.</p>
-            
-            <div class="btn-group">
-                <button id="btn-host" class="btn btn-primary">Crear Sala</button>
-                <button id="btn-guest" class="btn btn-secondary">Entrar en Sala</button>
-            </div>
-        </section>
+      <!-- VISTA 1: INICIO -->
+      <section id="view-home" class="view active">
+        <h1 class="main-title">
+          ¡PALABRA <br /><span class="highlight">BOMBA!</span>
+        </h1>
+        <p class="subtitle">
+          Agilidad mental, tiempo en contra y muchas palabras.
+        </p>
 
-        <!-- VISTA 2: LOBBY -->
-        <section id="view-lobby" class="view hidden">
-            <h2 class="section-title">Sala de Espera</h2>
-            
-            <div id="lobby-host" class="hidden">
-                <p>Comparte este código con tu amigo:</p>
-                <div id="room-code-display" class="code-box">Cargando...</div>
-                <div id="qr-container" class="qr-box"></div>
-                <p class="loading-text">Esperando al oponente<span class="dots">...</span></p>
-            </div>
+        <div class="btn-group">
+          <button id="btn-host" class="btn btn-primary">Crear Sala</button>
+          <button id="btn-guest" class="btn btn-secondary">
+            Entrar en Sala
+          </button>
+        </div>
+      </section>
 
-            <div id="lobby-guest" class="hidden">
-                <p>Ingresa el código de la sala:</p>
-                <input type="text" id="room-code-input" class="input-large" placeholder="EJ: A1B2" maxlength="4" autocomplete="off">
-                <button id="btn-join" class="btn btn-primary">Unirse</button>
-                <p id="join-error" class="error-text hidden">Código inválido o sala no encontrada.</p>
-            </div>
-            
-            <button class="btn btn-text btn-back">Volver</button>
-        </section>
+      <!-- VISTA 2: LOBBY -->
+      <section id="view-lobby" class="view hidden">
+        <h2 class="section-title">Sala de Espera</h2>
 
-        <!-- VISTA 3: PERFIL -->
-        <section id="view-profile" class="view hidden">
-            <h2 class="section-title">Tu Perfil</h2>
-            
-            <div class="emoji-selector">
-                <div class="selected-emoji" id="current-emoji">😎</div>
-                <button id="btn-change-emoji" class="btn btn-small">Cambiar</button>
-            </div>
+        <div id="lobby-host" class="hidden">
+          <p>Comparte este código con tu amigo:</p>
+          <div id="room-code-display" class="code-box">Cargando...</div>
+          <div id="qr-container" class="qr-box"></div>
+          <p class="loading-text">
+            Esperando al oponente<span class="dots">...</span>
+          </p>
+        </div>
 
-            <input type="text" id="player-name-input" class="input-large" placeholder="Tu Apodo" maxlength="10">
-            
-            <button id="btn-ready" class="btn btn-primary">¡Estoy Listo!</button>
-            <p id="ready-status" class="status-text hidden">Esperando al otro jugador...</p>
-        </section>
+        <div id="lobby-guest" class="hidden">
+          <p>Ingresa el código de la sala:</p>
+          <input
+            type="text"
+            id="room-code-input"
+            class="input-large"
+            placeholder="EJ: A1B2"
+            maxlength="4"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+          />
+          <button id="btn-join" class="btn btn-primary">Unirse</button>
+          <p id="join-error" class="error-text hidden">
+            Código inválido o sala no encontrada.
+          </p>
+        </div>
 
-        <!-- VISTA 4: CUENTA REGRESIVA PANTALLA COMPLETA -->
-        <section id="view-countdown" class="view hidden fullscreen-center">
-            <div id="big-countdown">3</div>
-        </section>
+        <button class="btn btn-text btn-back">Volver</button>
+      </section>
 
-        <!-- VISTA 5: JUEGO -->
-        <section id="view-game" class="view hidden">
-            <!-- Header común -->
-            <header class="game-header">
-                <div class="player-info" id="p1-info">
-                    <span class="emoji">😎</span>
-                    <span class="name">P1</span>
-                    <div class="lives" id="p1-lives">❤️❤️❤️</div>
-                </div>
-                <div class="vs-badge">VS</div>
-                <div class="player-info p2" id="p2-info">
-                    <div class="lives" id="p2-lives">❤️❤️❤️</div>
-                    <span class="name">P2</span>
-                    <span class="emoji">🤖</span>
-                </div>
-            </header>
+      <!-- VISTA 3: PERFIL -->
+      <section id="view-profile" class="view hidden">
+        <h2 class="section-title">Tu Perfil</h2>
 
-            <!-- Barra de Mecha -->
-            <div class="timer-container">
-                <div id="mecha-bar" class="mecha"></div>
-                <div id="mecha-spark" class="spark">✨</div>
-            </div>
+        <div class="emoji-selector">
+          <div class="selected-emoji" id="current-emoji">😎</div>
+          <button id="btn-change-emoji" class="btn btn-small">Cambiar</button>
+        </div>
 
-            <!-- Zona de Letra -->
-            <div class="target-letter-zone">
-                <div id="target-letter">A</div>
-            </div>
+        <input
+          type="text"
+          id="player-name-input"
+          class="input-large"
+          placeholder="Tu Apodo"
+          maxlength="10"
+        />
 
-            <!-- Zona de Acción (Activo) -->
-            <div id="action-zone" class="action-area hidden">
-                <p class="instruction">Escribe una palabra que empiece por <strong id="instruction-letter">A</strong></p>
-                <div class="input-wrapper">
-                    <span id="fixed-letter" class="fixed-letter">A</span>
-                    <input type="text" id="word-input" autocomplete="off" placeholder="...">
-                </div>
-                <button id="btn-verify" class="btn btn-primary">Verificar</button>
-                <p id="word-error" class="error-text hidden">¡Palabra no válida!</p>
-            </div>
+        <button id="btn-ready" class="btn btn-primary">¡Estoy Listo!</button>
+        <p id="ready-status" class="status-text hidden">
+          Esperando al otro jugador...
+        </p>
+        <button class="btn btn-text btn-profile-back">Volver</button>
+      </section>
 
-            <!-- Zona de Espectador (Pasivo) -->
-            <div id="spectator-zone" class="action-area spectator hidden">
-                <p class="instruction">Turno de <strong id="active-player-name">Oponente</strong></p>
-                <div class="typing-indicator">
-                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-                </div>
-                <div id="live-typing" class="live-typing-box">
-                    A<span class="faded">...</span>
-                </div>
-            </div>
+      <!-- VISTA 4: CUENTA REGRESIVA PANTALLA COMPLETA -->
+      <section id="view-countdown" class="view hidden fullscreen-center">
+        <div id="big-countdown">3</div>
+      </section>
 
-            <!-- Overlay de acierto y cambio de turno -->
-            <div id="turn-overlay" class="turn-overlay hidden">
-                <h2 id="turn-message">¡Perfecto!</h2>
-                <p>Tu turno en <span id="turn-countdown">3</span>...</p>
-            </div>
+      <!-- VISTA 5: JUEGO -->
+      <section id="view-game" class="view hidden">
+        <!-- Header común -->
+        <header class="game-header">
+          <div class="player-info" id="p1-info">
+            <span class="emoji">😎</span>
+            <span class="name">P1</span>
+            <div class="lives" id="p1-lives">❤️❤️❤️</div>
+          </div>
+          <div class="vs-badge">VS</div>
+          <div class="player-info p2" id="p2-info">
+            <div class="lives" id="p2-lives">❤️❤️❤️</div>
+            <span class="name">P2</span>
+            <span class="emoji">🤖</span>
+          </div>
+        </header>
 
-            <!-- Overlay de BOOM -->
-            <div id="boom-overlay" class="boom-overlay hidden">
-                <h1>¡BOOM!</h1>
-            </div>
-        </section>
+        <!-- Barra de Mecha -->
+        <div class="timer-container">
+          <div id="mecha-bar" class="mecha"></div>
+          <div id="mecha-spark" class="spark">✨</div>
+        </div>
 
-        <!-- VISTA 6: GAME OVER -->
-        <section id="view-gameover" class="view hidden">
-            <h1 class="main-title">¡JUEGO TERMINADO!</h1>
-            
-            <div class="podium">
-                <div class="winner-emoji" id="winner-emoji">👑</div>
-                <h2 id="winner-name">Ganador</h2>
-                <p>¡Sobrevivió a la bomba!</p>
-            </div>
+        <!-- Zona de Letra -->
+        <div class="target-letter-zone">
+          <div id="target-letter">A</div>
+        </div>
 
-            <div class="summary-container">
-                <h3>Resumen de Palabras</h3>
-                <div id="word-history" class="accordion">
-                    <!-- Se llena dinámicamente -->
-                </div>
-            </div>
+        <!-- Zona de Acción (Activo) -->
+        <div id="action-zone" class="action-area hidden">
+          <p class="instruction">
+            Escribe una palabra que empiece por
+            <strong id="instruction-letter">A</strong>
+          </p>
+          <div class="input-wrapper">
+            <span id="fixed-letter" class="fixed-letter">A</span>
+            <input
+              type="text"
+              id="word-input"
+              autocomplete="off"
+              placeholder="..."
+              autocapitalize="off"
+              autocorrect="off"
+              spellcheck="false"
+            />
+          </div>
+          <button id="btn-verify" class="btn btn-primary">Verificar</button>
+          <p id="word-error" class="error-text hidden">¡Palabra no válida!</p>
+        </div>
 
-            <button id="btn-replay" class="btn btn-primary">Volver a Jugar</button>
-            <button id="btn-home" class="btn btn-secondary">Salir al Menú</button>
-        </section>
+        <!-- Zona de Espectador (Pasivo) -->
+        <div id="spectator-zone" class="action-area spectator hidden">
+          <p class="instruction">
+            Turno de <strong id="active-player-name">Oponente</strong>
+          </p>
+          <div class="typing-indicator">
+            <span class="dot"></span><span class="dot"></span
+            ><span class="dot"></span>
+          </div>
+          <div id="live-typing" class="live-typing-box">
+            A<span class="faded">...</span>
+          </div>
+        </div>
 
+        <!-- Overlay de acierto y cambio de turno -->
+        <div id="turn-overlay" class="turn-overlay hidden">
+          <h2 id="turn-message">¡Perfecto!</h2>
+          <p>Tu turno en <span id="turn-countdown">3</span>...</p>
+        </div>
+
+        <!-- Overlay de BOOM -->
+        <div id="boom-overlay" class="boom-overlay hidden">
+          <h1>¡BOOM!</h1>
+        </div>
+
+        <button id="btn-exit-game" class="btn btn-text btn-exit-game">
+          Salir del juego
+        </button>
+      </section>
+
+      <!-- VISTA 6: GAME OVER -->
+      <section id="view-gameover" class="view hidden">
+        <h1 class="main-title">¡JUEGO TERMINADO!</h1>
+
+        <div class="podium">
+          <div class="winner-emoji" id="winner-emoji">👑</div>
+          <h2 id="winner-name">Ganador</h2>
+          <p>¡Sobrevivió a la bomba!</p>
+        </div>
+
+        <div class="summary-container">
+          <h3>Resumen de Palabras</h3>
+          <div id="word-history" class="accordion">
+            <!-- Se llena dinámicamente -->
+          </div>
+        </div>
+
+        <button id="btn-replay" class="btn btn-primary">Volver a Jugar</button>
+        <button id="btn-home" class="btn btn-secondary">Salir al Menú</button>
+      </section>
+    </div>
+
+    <div id="exit-modal" class="exit-modal hidden" aria-hidden="true">
+      <div class="exit-card">
+        <p class="exit-label">Advertencia</p>
+        <h2>Vas a salir de la partida</h2>
+        <p>Se perderá la conexión con el otro jugador.</p>
+        <div class="exit-countdown-wrap">
+          <span id="exit-countdown">3</span>
+        </div>
+        <button id="btn-confirm-exit" class="btn btn-primary" disabled>
+          Salir
+        </button>
+        <button id="btn-cancel-exit" class="btn btn-secondary">Cancelar</button>
+      </div>
     </div>
 
     <!-- Scripts CDN -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    
+
     <!-- Lógica local -->
     <script src="peer-network.js"></script>
     <script src="app.js"></script>
-</body>
+  </body>
 </html>

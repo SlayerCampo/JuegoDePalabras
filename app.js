@@ -33,6 +33,10 @@ class WordGame {
     this.usedWords = new Set();
     this.network = null;
     this.isHost = false;
+    this.peerReady = null;
+    this.joiningRoom = false;
+    this.pendingRoomCode = null;
+    this.exitCountdownTimer = null;
 
     // Estado del Jugador Local
     this.myProfile = {
@@ -60,6 +64,12 @@ class WordGame {
 
     this.initDOM();
     this.loadDictionary();
+
+    const roomFromUrl = new URLSearchParams(window.location.search).get("room");
+    if (roomFromUrl) {
+      this.pendingRoomCode = roomFromUrl.trim().toUpperCase();
+      this.setupGuest(this.pendingRoomCode);
+    }
   }
 
   async loadDictionary() {
@@ -148,9 +158,24 @@ class WordGame {
       .getElementById("btn-replay")
       .addEventListener("click", () => this.resetGame(true));
     document.getElementById("btn-home").addEventListener("click", () => {
-      if (this.network) this.network.disconnect();
-      location.reload();
+      this.goHome();
     });
+
+    document
+      .getElementById("btn-exit-game")
+      .addEventListener("click", () => this.showExitModal());
+
+    document
+      .querySelector(".btn-profile-back")
+      .addEventListener("click", () => this.goHome());
+
+    document
+      .getElementById("btn-cancel-exit")
+      .addEventListener("click", () => this.hideExitModal());
+
+    document
+      .getElementById("btn-confirm-exit")
+      .addEventListener("click", () => this.goHome());
   }
 
   showView(viewName) {
@@ -161,23 +186,111 @@ class WordGame {
     });
   }
 
+  disconnectNetwork() {
+    if (this.network) {
+      this.network.disconnect();
+      this.network = null;
+    }
+    this.peerReady = null;
+    this.joiningRoom = false;
+  }
+
+  resetLocalGameState() {
+    this.usedWords.clear();
+    this.wordHistory = [];
+    this.gameActive = false;
+    this.turnCount = 1;
+    this.activePlayer = "host";
+    this.targetLetter = "A";
+    this.timer = null;
+    this.timeLeft = 0;
+    this.myProfile.isReady = false;
+    this.opponentProfile.isReady = false;
+    this.myProfile.lives = 3;
+    this.opponentProfile.lives = 3;
+
+    document.getElementById("btn-ready").classList.remove("hidden");
+    document.getElementById("ready-status").classList.add("hidden");
+    document.getElementById("join-error").classList.add("hidden");
+    document.getElementById("room-code-input").value = "";
+    document.getElementById("word-input").value = "";
+    this.hideExitModal();
+  }
+
+  goHome() {
+    this.disconnectNetwork();
+    this.resetLocalGameState();
+    this.pendingRoomCode = null;
+    window.history.replaceState({}, document.title, window.location.pathname);
+    this.showView("home");
+  }
+
+  showExitModal() {
+    const modal = document.getElementById("exit-modal");
+    const confirmButton = document.getElementById("btn-confirm-exit");
+    const countdown = document.getElementById("exit-countdown");
+
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    confirmButton.disabled = true;
+
+    let secondsLeft = 3;
+    countdown.innerText = secondsLeft;
+
+    if (this.exitCountdownTimer) {
+      clearInterval(this.exitCountdownTimer);
+    }
+
+    this.exitCountdownTimer = setInterval(() => {
+      secondsLeft -= 1;
+      if (secondsLeft > 0) {
+        countdown.innerText = secondsLeft;
+      } else {
+        clearInterval(this.exitCountdownTimer);
+        this.exitCountdownTimer = null;
+        countdown.innerText = "0";
+        confirmButton.disabled = false;
+      }
+    }, 1000);
+  }
+
+  hideExitModal() {
+    const modal = document.getElementById("exit-modal");
+    const confirmButton = document.getElementById("btn-confirm-exit");
+
+    if (this.exitCountdownTimer) {
+      clearInterval(this.exitCountdownTimer);
+      this.exitCountdownTimer = null;
+    }
+
+    confirmButton.disabled = true;
+    document.getElementById("exit-countdown").innerText = "3";
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
   // --- Red ---
   setupHost() {
+    this.disconnectNetwork();
     this.isHost = true;
     this.activePlayer = "host";
+    this.pendingRoomCode = null;
     this.showView("lobby");
     document.getElementById("lobby-host").classList.remove("hidden");
     document.getElementById("lobby-guest").classList.add("hidden");
 
     this.network = new PeerNetwork(true, this.handleNetworkMessage.bind(this));
     this.network.init().then((id) => {
+      const inviteUrl = new URL(window.location.href);
+      inviteUrl.searchParams.set("room", id);
+
       document.getElementById("room-code-display").innerText = id;
       document.querySelector(".loading-text").style.display = "block";
 
       // Generar QR
       document.getElementById("qr-container").innerHTML = "";
       new QRCode(document.getElementById("qr-container"), {
-        text: id,
+        text: inviteUrl.toString(),
         width: 128,
         height: 128,
         colorDark: "#120E1F",
@@ -186,8 +299,10 @@ class WordGame {
     });
   }
 
-  setupGuest() {
+  setupGuest(autoJoinCode = null) {
+    this.disconnectNetwork();
     this.isHost = false;
+    this.pendingRoomCode = autoJoinCode ? autoJoinCode.toUpperCase() : null;
     this.showView("lobby");
     document.getElementById("lobby-host").classList.add("hidden");
     document.getElementById("lobby-guest").classList.remove("hidden");
@@ -195,24 +310,41 @@ class WordGame {
 
     this.network = new PeerNetwork(false, this.handleNetworkMessage.bind(this));
     this.peerReady = this.network.init(); // Inicializa el peer sin ID específico
+
+    if (this.pendingRoomCode) {
+      document.getElementById("room-code-input").value = this.pendingRoomCode;
+      this.peerReady.then(() => this.joinRoom(this.pendingRoomCode));
+    }
   }
 
-  async joinRoom() {
-    const code = document.getElementById("room-code-input").value.trim();
+  async joinRoom(codeOverride = null) {
+    if (this.joiningRoom) return;
+
+    const inputCode =
+      codeOverride ?? document.getElementById("room-code-input").value;
+    const code = inputCode.trim().toUpperCase();
     if (code.length !== 4) return;
+
+    this.joiningRoom = true;
+    document.getElementById("join-error").classList.add("hidden");
 
     if (this.peerReady) {
       try {
         await this.peerReady;
       } catch (err) {
         document.getElementById("join-error").classList.remove("hidden");
+        this.joiningRoom = false;
         return;
       }
     }
 
-    this.network.joinRoom(code).catch((err) => {
+    try {
+      await this.network.joinRoom(code);
+    } catch (err) {
       document.getElementById("join-error").classList.remove("hidden");
-    });
+    } finally {
+      this.joiningRoom = false;
+    }
   }
 
   handleNetworkMessage(msg) {
