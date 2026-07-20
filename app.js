@@ -281,10 +281,19 @@ class WordGame {
   }
 
   showView(viewName) {
-    Object.entries(this.views).forEach(([name, view]) => {
-      const isActive = name === viewName;
-      view.classList.toggle("active", isActive);
-      view.classList.toggle("hidden", !isActive);
+    const allViewIds = [
+      'view-home','view-lobby','view-profile','view-countdown',
+      'view-game','view-gameover',
+      'view-stop-config','view-stop-lobby','view-stop-profile',
+      'view-stop-countdown','view-stop-game','view-stop-review',
+      'view-stop-gameover'
+    ];
+    allViewIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const isActive = id === ('view-' + viewName) || id === viewName;
+      el.classList.toggle('active', isActive);
+      el.classList.toggle('hidden', !isActive);
     });
   }
 

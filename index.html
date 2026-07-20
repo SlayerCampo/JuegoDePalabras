@@ -2,23 +2,15 @@
 <html lang="es" data-theme="light">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>¡Palabra Bomba!</title>
     <meta name="description" content="Juego de palabras multijugador en tiempo real. ¡Agilidad mental contra el reloj!" />
-    <!-- Google Fonts -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
-    <!-- CSS -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
 
-    <!-- ── Botón modo oscuro (global, siempre visible) ── -->
+    <!-- ── Botón modo oscuro (global) ── -->
     <button id="btn-dark-mode" aria-label="Cambiar tema" title="Modo oscuro / claro">
       <span class="icon-moon">🌙</span>
       <span class="icon-sun">☀️</span>
@@ -30,14 +22,10 @@
            VISTA 1: INICIO
       ══════════════════════════════════════ -->
       <section id="view-home" class="view active">
-        <h1 class="main-title">
-          ¡PALABRA <br /><span class="highlight">BOMBA!</span>
-        </h1>
-        <p class="subtitle">
-          Agilidad mental, tiempo en contra y muchas palabras.
-        </p>
+        <h1 class="main-title">¡PALABRA <br /><span class="highlight">BOMBA!</span></h1>
+        <p class="subtitle">Agilidad mental, tiempo en contra y muchas palabras.</p>
 
-        <!-- Selector de dificultad (pills) -->
+        <!-- Dificultad -->
         <div class="mode-panel">
           <p class="mode-panel-title">⏱ Dificultad</p>
           <div class="mode-pills">
@@ -59,7 +47,7 @@
           </div>
         </div>
 
-        <!-- Selector de modo de letra -->
+        <!-- Cambio de letra -->
         <div class="mode-panel">
           <p class="mode-panel-title">🔤 Cambio de letra</p>
           <div class="mode-pills letter-mode-pills">
@@ -76,7 +64,7 @@
           </div>
         </div>
 
-        <!-- Categorías (próximamente) -->
+        <!-- Categorías -->
         <div class="mode-panel">
           <p class="mode-panel-title">📂 Categoría</p>
           <div class="category-grid">
@@ -109,50 +97,41 @@
 
         <div class="btn-group">
           <button id="btn-host" class="btn btn-primary">Crear Sala</button>
-          <button id="btn-guest" class="btn btn-secondary">
-            Entrar en Sala
-          </button>
+          <button id="btn-guest" class="btn btn-secondary">Entrar en Sala</button>
         </div>
+
+        <!-- Separador hacia STOP -->
+        <div class="stop-home-divider"><span>✦ otro modo de juego ✦</span></div>
+
+        <!-- Tarjeta STOP Bomba -->
+        <button class="stop-home-card" id="btn-go-stop" type="button">
+          <div class="stop-home-card-icon">🛑</div>
+          <div class="stop-home-card-text">
+            <h3>STOP Bomba</h3>
+            <p>Categorías, letra secreta y ¡el primero en gritar STOP gana la ronda!</p>
+          </div>
+          <div class="stop-home-card-arrow">→</div>
+        </button>
       </section>
 
 
       <!-- ══════════════════════════════════════
-           VISTA 2: LOBBY
+           VISTA 2: LOBBY (Palabra Bomba)
       ══════════════════════════════════════ -->
       <section id="view-lobby" class="view hidden">
         <h2 class="section-title">Sala de Espera</h2>
-
         <div id="lobby-host" class="hidden">
-          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:0.5rem;">
-            Comparte este código con tu amigo:
-          </p>
+          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:0.5rem;">Comparte este código con tu amigo:</p>
           <div id="room-code-display" class="code-box">Cargando...</div>
           <div id="qr-container" class="qr-box"></div>
-          <p class="loading-text">
-            Esperando al oponente<span class="dots">...</span>
-          </p>
+          <p class="loading-text">Esperando al oponente<span class="dots">...</span></p>
         </div>
-
         <div id="lobby-guest" class="hidden">
-          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:1rem;">
-            Ingresa el código de la sala:
-          </p>
-          <input
-            type="text"
-            id="room-code-input"
-            class="input-large"
-            placeholder="EJ: A1B2"
-            maxlength="4"
-            autocomplete="off"
-            autocapitalize="characters"
-            spellcheck="false"
-          />
+          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:1rem;">Ingresa el código de la sala:</p>
+          <input type="text" id="room-code-input" class="input-large" placeholder="EJ: A1B2" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" />
           <button id="btn-join" class="btn btn-primary">Unirse</button>
-          <p id="join-error" class="error-text hidden">
-            Código inválido o sala no encontrada.
-          </p>
+          <p id="join-error" class="error-text hidden">Código inválido o sala no encontrada.</p>
         </div>
-
         <button class="btn btn-text btn-back">← Volver</button>
       </section>
 
@@ -161,24 +140,13 @@
       ══════════════════════════════════════ -->
       <section id="view-profile" class="view hidden">
         <h2 class="section-title">Tu Perfil</h2>
-
         <div class="emoji-selector">
           <div class="selected-emoji" id="current-emoji">😎</div>
           <button id="btn-change-emoji" class="btn btn-small">Cambiar avatar</button>
         </div>
-
-        <input
-          type="text"
-          id="player-name-input"
-          class="input-large"
-          placeholder="Tu apodo"
-          maxlength="10"
-        />
-
+        <input type="text" id="player-name-input" class="input-large" placeholder="Tu apodo" maxlength="10" />
         <button id="btn-ready" class="btn btn-primary">¡Estoy Listo! 🎯</button>
-        <p id="ready-status" class="status-text hidden">
-          Esperando al otro jugador<span class="dots">...</span>
-        </p>
+        <p id="ready-status" class="status-text hidden">Esperando al otro jugador<span class="dots">...</span></p>
         <button class="btn btn-text btn-profile-back">← Volver</button>
       </section>
 
@@ -190,11 +158,9 @@
       </section>
 
       <!-- ══════════════════════════════════════
-           VISTA 5: JUEGO
+           VISTA 5: JUEGO (Palabra Bomba)
       ══════════════════════════════════════ -->
       <section id="view-game" class="view hidden">
-
-        <!-- Header: jugadores -->
         <header class="game-header">
           <div class="player-info" id="p1-info">
             <span class="emoji">😎</span>
@@ -208,8 +174,6 @@
             <span class="emoji">🤖</span>
           </div>
         </header>
-
-        <!-- Barra de mecha -->
         <div class="timer-container">
           <div id="mecha-bar" class="mecha"></div>
           <div id="mecha-spark" class="spark">✨</div>
@@ -218,118 +182,284 @@
           <span id="round-label">Ronda 1</span>
           <span id="time-remaining">0.0s</span>
         </div>
-
-        <!-- Letra objetivo -->
         <div class="target-letter-zone">
           <div id="target-letter">A</div>
         </div>
-
-        <!-- Zona activa (es tu turno) -->
         <div id="action-zone" class="action-area hidden">
           <p class="instruction" id="turn-hint">Escribe una palabra válida</p>
           <div class="input-wrapper">
-            <input
-              type="text"
-              id="word-input"
-              autocomplete="off"
-              placeholder="tu palabra..."
-              autocapitalize="off"
-              autocorrect="off"
-              spellcheck="false"
-            />
+            <input type="text" id="word-input" autocomplete="off" placeholder="tu palabra..." autocapitalize="off" autocorrect="off" spellcheck="false" />
           </div>
           <button id="btn-verify" class="btn btn-primary">Verificar ✓</button>
           <p id="word-error" class="error-text hidden">¡Palabra no válida!</p>
         </div>
-
-        <!-- Zona espectador (turno del otro) -->
         <div id="spectator-zone" class="action-area spectator hidden">
-          <p class="instruction">
-            Turno de <strong id="active-player-name">Oponente</strong>
-          </p>
+          <p class="instruction">Turno de <strong id="active-player-name">Oponente</strong></p>
           <div class="typing-indicator">
             <span class="dot"></span><span class="dot"></span><span class="dot"></span>
           </div>
-          <div id="live-typing" class="live-typing-box">
-            <span class="faded">Esperando...</span>
-          </div>
+          <div id="live-typing" class="live-typing-box"><span class="faded">Esperando...</span></div>
         </div>
-
-        <!-- Overlay: cambio de turno -->
         <div id="turn-overlay" class="turn-overlay hidden">
           <h2 id="turn-message">¡Perfecto!</h2>
-          <p id="turn-detail">
-            Comienza en <span id="turn-countdown">3</span>...
-          </p>
+          <p id="turn-detail">Comienza en <span id="turn-countdown">3</span>...</p>
         </div>
-
-        <!-- Overlay: BOOM -->
         <div id="boom-overlay" class="boom-overlay hidden">
           <h1>💥 ¡BOOM!</h1>
           <p>Se acabó el tiempo</p>
         </div>
-
-        <button id="btn-exit-game" class="btn btn-text btn-exit-game">
-          Salir del juego
-        </button>
+        <button id="btn-exit-game" class="btn btn-text btn-exit-game">Salir del juego</button>
       </section>
 
       <!-- ══════════════════════════════════════
-           VISTA 6: GAME OVER
+           VISTA 6: GAME OVER (Palabra Bomba)
       ══════════════════════════════════════ -->
       <section id="view-gameover" class="view hidden">
         <h1 class="main-title">¡Juego<br/><span class="highlight">Terminado!</span></h1>
-
         <div class="podium">
           <div class="winner-emoji" id="winner-emoji">👑</div>
           <h2 id="winner-name">Ganador</h2>
           <p>¡Sobrevivió a la bomba!</p>
         </div>
-
         <div class="summary-container">
           <h3>📋 Resumen de palabras</h3>
-          <div id="word-history" class="accordion">
-            <!-- Llenado dinámicamente -->
-          </div>
+          <div id="word-history" class="accordion"></div>
         </div>
-
         <div class="btn-group">
           <button id="btn-replay" class="btn btn-primary">🔄 Volver a Jugar</button>
           <button id="btn-home" class="btn btn-secondary">🏠 Menú Principal</button>
         </div>
       </section>
 
+
+      <!-- ╔══════════════════════════════════════════════╗
+           ║        VISTAS DEL MODO STOP BOMBA           ║
+           ╚══════════════════════════════════════════════╝ -->
+
+      <!-- VISTA S1: Configuración STOP -->
+      <section id="view-stop-config" class="view hidden">
+        <div class="stop-config-header">
+          <div class="stop-badge">🛑 STOP BOMBA</div>
+          <h2 class="section-title" style="margin-bottom:0.3rem;">Configura tu partida</h2>
+          <p class="subtitle" style="margin-bottom:1.2rem;">Elige con qué categorías jugar</p>
+        </div>
+
+        <div class="stop-categories-grid" id="stop-categories-grid">
+          <button class="stop-cat-toggle active" data-cat="nombres" type="button">
+            <span class="stop-cat-emoji">👤</span>
+            <span class="stop-cat-name">Nombres</span>
+            <span class="stop-cat-check">✓</span>
+          </button>
+          <button class="stop-cat-toggle active" data-cat="apellidos" type="button">
+            <span class="stop-cat-emoji">🏷️</span>
+            <span class="stop-cat-name">Apellidos</span>
+            <span class="stop-cat-check">✓</span>
+          </button>
+          <button class="stop-cat-toggle active" data-cat="objetos" type="button">
+            <span class="stop-cat-emoji">📦</span>
+            <span class="stop-cat-name">Objetos</span>
+            <span class="stop-cat-check">✓</span>
+          </button>
+          <button class="stop-cat-toggle active" data-cat="animales" type="button">
+            <span class="stop-cat-emoji">🐾</span>
+            <span class="stop-cat-name">Animales</span>
+            <span class="stop-cat-check">✓</span>
+          </button>
+          <button class="stop-cat-toggle active" data-cat="colores" type="button">
+            <span class="stop-cat-emoji">🎨</span>
+            <span class="stop-cat-name">Colores</span>
+            <span class="stop-cat-check">✓</span>
+          </button>
+          <button class="stop-cat-toggle active" data-cat="ciudad" type="button">
+            <span class="stop-cat-emoji">🏙️</span>
+            <span class="stop-cat-name">Ciudad</span>
+            <span class="stop-cat-check">✓</span>
+          </button>
+          <button class="stop-cat-toggle active" data-cat="pais" type="button">
+            <span class="stop-cat-emoji">🌍</span>
+            <span class="stop-cat-name">País</span>
+            <span class="stop-cat-check">✓</span>
+          </button>
+          <button class="stop-cat-toggle active" data-cat="fruta" type="button">
+            <span class="stop-cat-emoji">🍎</span>
+            <span class="stop-cat-name">Fruta</span>
+            <span class="stop-cat-check">✓</span>
+          </button>
+        </div>
+
+        <p id="stop-cat-warning" class="error-text hidden" style="margin-bottom:0.8rem;">¡Selecciona al menos 2 categorías!</p>
+
+        <div class="btn-group" style="margin-top:1rem;">
+          <button id="btn-stop-host" class="btn btn-primary">🛑 Crear Sala STOP</button>
+          <button id="btn-stop-guest" class="btn btn-secondary">Entrar a Sala STOP</button>
+        </div>
+        <button class="btn btn-text" id="btn-stop-config-back" style="margin-top:0.5rem;">← Volver al menú</button>
+      </section>
+
+      <!-- VISTA S2: Lobby STOP -->
+      <section id="view-stop-lobby" class="view hidden">
+        <div class="stop-badge" style="margin-bottom:1rem;">🛑 STOP BOMBA</div>
+        <h2 class="section-title">Sala de Espera</h2>
+
+        <div id="stop-lobby-host" class="hidden">
+          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:0.5rem;">Comparte este código con tu amigo:</p>
+          <div id="stop-room-code-display" class="code-box">Cargando...</div>
+          <div id="stop-qr-container" class="qr-box"></div>
+          <p class="loading-text">Esperando al oponente<span class="dots">...</span></p>
+        </div>
+
+        <div id="stop-lobby-guest" class="hidden">
+          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:1rem;">Ingresa el código de la sala:</p>
+          <input type="text" id="stop-room-code-input" class="input-large" placeholder="EJ: A1B2" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+          <button id="btn-stop-join" class="btn btn-primary">Unirse</button>
+          <p id="stop-join-error" class="error-text hidden">Código inválido o sala no encontrada.</p>
+        </div>
+
+        <button class="btn btn-text" id="btn-stop-lobby-back">← Volver</button>
+      </section>
+
+      <!-- VISTA S3: Perfil STOP -->
+      <section id="view-stop-profile" class="view hidden">
+        <div class="stop-badge" style="margin-bottom:1rem;">🛑 STOP BOMBA</div>
+        <h2 class="section-title">Tu Perfil</h2>
+        <div class="emoji-selector">
+          <div class="selected-emoji" id="stop-current-emoji">😎</div>
+          <button id="btn-stop-change-emoji" class="btn btn-small">Cambiar avatar</button>
+        </div>
+        <input type="text" id="stop-player-name-input" class="input-large" placeholder="Tu apodo" maxlength="10" />
+        <button id="btn-stop-ready" class="btn btn-primary">¡Estoy Listo! 🎯</button>
+        <p id="stop-ready-status" class="status-text hidden">Esperando al otro jugador<span class="dots">...</span></p>
+        <button class="btn btn-text btn-stop-profile-back">← Volver</button>
+      </section>
+
+      <!-- VISTA S4: Cuenta regresiva STOP + Revelación de letra -->
+      <section id="view-stop-countdown" class="view hidden fullscreen-center">
+        <div class="stop-countdown-wrap">
+          <p class="stop-countdown-label" id="stop-countdown-label">¡La letra se revela en...</p>
+          <div id="stop-big-countdown" class="stop-big-number">5</div>
+          <div id="stop-letter-reveal" class="stop-letter-reveal hidden">
+            <div class="stop-reveal-flip">
+              <div class="stop-reveal-letter" id="stop-reveal-letter">A</div>
+            </div>
+            <p class="stop-reveal-hint">¡Ya pueden comenzar!<br/>El primero en completar todo y presionar <strong>STOP</strong> gana la ronda.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- VISTA S5: Juego STOP -->
+      <section id="view-stop-game" class="view hidden">
+        <!-- Header jugadores con puntuación -->
+        <header class="game-header stop-game-header">
+          <div class="player-info" id="sp1-info">
+            <span class="emoji">😎</span>
+            <span class="name" id="sp1-name">P1</span>
+            <div class="stop-score-chip" id="sp1-score">0 pts</div>
+          </div>
+          <div class="stop-round-center">
+            <div class="stop-round-badge" id="stop-round-label">R1/5</div>
+            <div class="stop-current-letter" id="stop-current-letter">A</div>
+          </div>
+          <div class="player-info p2" id="sp2-info">
+            <div class="stop-score-chip" id="sp2-score">0 pts</div>
+            <span class="name" id="sp2-name">P2</span>
+            <span class="emoji">🤖</span>
+          </div>
+        </header>
+
+        <p class="stop-letter-hint">Escribe con la letra <strong id="stop-hint-letter">A</strong> en cada categoría</p>
+
+        <!-- Campos de respuesta por categoría -->
+        <div class="stop-answers-grid" id="stop-answers-grid">
+          <!-- Se genera dinámicamente en JS -->
+        </div>
+
+        <!-- Botón STOP -->
+        <button id="btn-stop-action" class="btn-stop-action" disabled>
+          <span class="stop-btn-icon">🛑</span>
+          <span class="stop-btn-text">¡STOP!</span>
+          <span class="stop-btn-hint" id="stop-btn-hint-text">Llena todas las categorías</span>
+        </button>
+
+        <!-- Overlay: el otro jugador dio STOP -->
+        <div id="stop-opponent-stop-overlay" class="stop-big-overlay hidden">
+          <div class="stop-big-overlay-content">
+            <div class="stop-overlay-emoji anim-bounce">🛑</div>
+            <h2 id="stop-overlay-title">¡STOP!</h2>
+            <p id="stop-overlay-msg">Tu oponente detuvo el juego.<br/>Revisando respuestas...</p>
+          </div>
+        </div>
+
+        <button id="btn-stop-exit" class="btn btn-text btn-exit-game">Salir</button>
+      </section>
+
+      <!-- VISTA S6: Revisión y votación -->
+      <section id="view-stop-review" class="view hidden">
+        <div class="stop-review-header">
+          <div class="stop-badge">🛑 Revisión de Puntos</div>
+          <p class="stop-review-subtitle">
+            Ronda <span id="stop-review-round">1</span> · Letra
+            <span class="stop-review-letter-badge" id="stop-review-letter">A</span>
+          </p>
+        </div>
+
+        <!-- Lista de categorías a revisar -->
+        <div class="stop-review-list" id="stop-review-list">
+          <!-- Generado dinámicamente -->
+        </div>
+
+        <!-- Navegación: siguiente ronda / fin -->
+        <div class="stop-review-nav" id="stop-review-nav" style="display:none;">
+          <div class="stop-round-scoreboard" id="stop-round-scoreboard">
+            <!-- Resumen de puntos de esta ronda -->
+          </div>
+          <button id="btn-stop-next-round" class="btn btn-primary" style="width:100%;margin-top:1rem;">
+            Siguiente Ronda →
+          </button>
+          <p id="stop-waiting-next" class="status-text hidden">
+            Esperando al otro jugador<span class="dots">...</span>
+          </p>
+        </div>
+      </section>
+
+      <!-- VISTA S7: Game Over STOP -->
+      <section id="view-stop-gameover" class="view hidden">
+        <div class="stop-gameover-wrap">
+          <div class="stop-gameover-trophy" id="stop-trophy">🏆</div>
+          <h1 class="main-title" style="margin-bottom:0.4rem;">¡Juego<br/><span class="highlight">Terminado!</span></h1>
+          <p class="subtitle" id="stop-winner-text" style="margin-bottom:1.5rem;"></p>
+
+          <div class="stop-final-scoreboard" id="stop-final-scoreboard">
+            <!-- Tabla generada dinámicamente -->
+          </div>
+
+          <div class="btn-group" style="margin-top:1.5rem;">
+            <button id="btn-stop-replay" class="btn btn-primary">🔄 Jugar de nuevo</button>
+            <button id="btn-stop-home" class="btn btn-secondary">🏠 Menú Principal</button>
+          </div>
+        </div>
+      </section>
+
     </div><!-- /app-container -->
 
-    <!-- ══════════════════════════════════════
-         MODAL: Salir del juego
-    ══════════════════════════════════════ -->
+    <!-- MODAL: Salir del juego -->
     <div id="exit-modal" class="exit-modal hidden" aria-hidden="true">
       <div class="exit-card">
         <p class="exit-label">⚠️ Advertencia</p>
         <h2>¿Salir de la partida?</h2>
         <p>Se perderá la conexión con el otro jugador.</p>
-        <div class="exit-countdown-wrap">
-          <span id="exit-countdown">3</span>
-        </div>
-        <button id="btn-confirm-exit" class="btn btn-primary" disabled>
-          Salir
-        </button>
+        <div class="exit-countdown-wrap"><span id="exit-countdown">3</span></div>
+        <button id="btn-confirm-exit" class="btn btn-primary" disabled>Salir</button>
         <button id="btn-cancel-exit" class="btn btn-secondary">Cancelar</button>
       </div>
     </div>
 
-    <!-- ══════════════════════
-         MODAL: Oponente desconectado
-    ══════════════════════ -->
+    <!-- MODAL: Oponente desconectado -->
     <div id="disconnect-modal" class="hidden">
       <div class="disconnect-card">
         <span class="disconnect-emoji">😢</span>
         <h2>Oponente desconectado</h2>
         <p>Tu oponente abandonó la partida.<br/>La sesión ha terminado.</p>
-        <button id="btn-disconnect-ok" class="btn btn-primary">
-          Volver al menú
-        </button>
+        <button id="btn-disconnect-ok" class="btn btn-primary">Volver al menú</button>
       </div>
     </div>
 
@@ -340,5 +470,6 @@
     <!-- Lógica local -->
     <script src="peer-network.js"></script>
     <script src="app.js"></script>
+    <script src="stop-game.js"></script>
   </body>
 </html>
