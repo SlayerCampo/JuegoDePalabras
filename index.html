@@ -26,6 +26,24 @@
           Agilidad mental, tiempo en contra y muchas palabras.
         </p>
 
+        <div class="mode-panel">
+          <p class="mode-panel-title">Elige un modo</p>
+          <div class="mode-grid">
+            <button class="mode-option active" data-mode="normal">
+              <span class="mode-name">Normal</span>
+              <span class="mode-desc">30s, 15s, 7.5s</span>
+            </button>
+            <button class="mode-option" data-mode="hardcore">
+              <span class="mode-name">Hardcore</span>
+              <span class="mode-desc">10s, 5s, 2.5s</span>
+            </button>
+            <button class="mode-option" data-mode="easy">
+              <span class="mode-name">Fácil</span>
+              <span class="mode-desc">40s, 20s, 10s</span>
+            </button>
+          </div>
+        </div>
+
         <div class="btn-group">
           <button id="btn-host" class="btn btn-primary">Crear Sala</button>
           <button id="btn-guest" class="btn btn-secondary">
@@ -119,20 +137,20 @@
           <div id="mecha-bar" class="mecha"></div>
           <div id="mecha-spark" class="spark">✨</div>
         </div>
+        <div class="timer-meta">
+          <span id="round-label">Ronda 1</span>
+          <span id="time-remaining">0.0s</span>
+        </div>
 
         <!-- Zona de Letra -->
         <div class="target-letter-zone">
-          <div id="target-letter">A</div>
+          <div id="target-letter">R1</div>
         </div>
 
         <!-- Zona de Acción (Activo) -->
         <div id="action-zone" class="action-area hidden">
-          <p class="instruction">
-            Escribe una palabra que empiece por
-            <strong id="instruction-letter">A</strong>
-          </p>
+          <p class="instruction" id="turn-hint">Escribe una palabra válida</p>
           <div class="input-wrapper">
-            <span id="fixed-letter" class="fixed-letter">A</span>
             <input
               type="text"
               id="word-input"
@@ -164,7 +182,9 @@
         <!-- Overlay de acierto y cambio de turno -->
         <div id="turn-overlay" class="turn-overlay hidden">
           <h2 id="turn-message">¡Perfecto!</h2>
-          <p>Tu turno en <span id="turn-countdown">3</span>...</p>
+          <p id="turn-detail">
+            Tu turno sigue en <span id="turn-countdown">3</span>...
+          </p>
         </div>
 
         <!-- Overlay de BOOM -->

@@ -1,6 +1,23 @@
 // --- Constantes y Utilidades ---
 const ALPHABET = "ABCDEFGHIJLMNOPQRSTUV".split(""); // Sin W, X, Y, Z, K
 const EMOJIS = ["😎", "🤖", "👽", "👻", "🤡", "🦊", "🐯", "🐶", "🐱", "🐵"];
+const GAME_MODES = {
+  hardcore: {
+    label: "Hardcore",
+    description: "Rondas rápidas: 10s, 5s y 2.5s.",
+    roundTimes: [10, 5, 2.5],
+  },
+  normal: {
+    label: "Normal",
+    description: "Balanceado: 30s, 15s y 7.5s.",
+    roundTimes: [30, 15, 7.5],
+  },
+  easy: {
+    label: "Fácil",
+    description: "Más relajado: 40s, 20s y 10s.",
+    roundTimes: [40, 20, 10],
+  },
+};
 
 function limpiarTexto(texto) {
   return texto
@@ -14,16 +31,23 @@ function getRandomLetter() {
   return ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
 }
 
-function getTurnDuration(turnCount) {
-  // 1 ronda = 2 turnos (1 por jugador)
-  // Ronda 1-5 (turnos 1-10): 60s
-  // Ronda 6-10 (turnos 11-20): 30s
-  // Ronda 11-15 (turnos 21-30): 15s
-  // Ronda 16+ (turnos 31+): 7s
-  if (turnCount <= 10) return 60;
-  if (turnCount <= 20) return 30;
-  if (turnCount <= 30) return 15;
-  return 7;
+function getRoundNumber(turnCount) {
+  return Math.ceil(turnCount / 5);
+}
+
+function getModeConfig(mode) {
+  return GAME_MODES[mode] || GAME_MODES.normal;
+}
+
+function getRoundDuration(mode, roundNumber) {
+  const config = getModeConfig(mode);
+  return config.roundTimes[
+    Math.min(roundNumber - 1, config.roundTimes.length - 1)
+  ];
+}
+
+function formatSeconds(seconds) {
+  return Number.isInteger(seconds) ? `${seconds}` : seconds.toFixed(1);
 }
 
 // --- Clase Principal del Juego ---
@@ -33,10 +57,12 @@ class WordGame {
     this.usedWords = new Set();
     this.network = null;
     this.isHost = false;
+    this.gameMode = "normal";
     this.peerReady = null;
     this.joiningRoom = false;
     this.pendingRoomCode = null;
     this.exitCountdownTimer = null;
+    this.timerDisplayInterval = null;
 
     // Estado del Jugador Local
     this.myProfile = {
@@ -56,7 +82,7 @@ class WordGame {
     this.gameActive = false;
     this.turnCount = 1;
     this.activePlayer = "host"; // 'host' o 'guest'
-    this.targetLetter = "A";
+    this.currentRound = 1;
     this.timer = null;
     this.mechaAnimation = null;
     this.timeLeft = 0;
@@ -99,7 +125,7 @@ class WordGame {
     // Botones de navegación base
     document
       .getElementById("btn-host")
-      .addEventListener("click", () => this.setupHost());
+      .addEventListener("click", () => this.setupHost(this.gameMode));
     document
       .getElementById("btn-guest")
       .addEventListener("click", () => this.setupGuest());
@@ -112,6 +138,17 @@ class WordGame {
     document
       .getElementById("btn-join")
       .addEventListener("click", () => this.joinRoom());
+
+    document.querySelectorAll(".mode-option").forEach((button) => {
+      button.addEventListener("click", () => {
+        const selectedMode = button.dataset.mode;
+        this.gameMode = selectedMode;
+
+        document.querySelectorAll(".mode-option").forEach((item) => {
+          item.classList.toggle("active", item === button);
+        });
+      });
+    });
 
     // Perfil
     const btnChangeEmoji = document.getElementById("btn-change-emoji");
@@ -140,6 +177,8 @@ class WordGame {
     // Juego
     const wordInput = document.getElementById("word-input");
     wordInput.addEventListener("input", (e) => {
+      document.getElementById("word-error").classList.add("hidden");
+      wordInput.parentElement.classList.remove("shake");
       if (this.amIActive()) {
         this.network.send("WORD_TYPED", e.target.value);
       }
@@ -201,8 +240,12 @@ class WordGame {
     this.gameActive = false;
     this.turnCount = 1;
     this.activePlayer = "host";
-    this.targetLetter = "A";
+    this.currentRound = 1;
     this.timer = null;
+    if (this.timerDisplayInterval) {
+      clearInterval(this.timerDisplayInterval);
+      this.timerDisplayInterval = null;
+    }
     this.timeLeft = 0;
     this.myProfile.isReady = false;
     this.opponentProfile.isReady = false;
@@ -270,9 +313,10 @@ class WordGame {
   }
 
   // --- Red ---
-  setupHost() {
+  setupHost(selectedMode = "normal") {
     this.disconnectNetwork();
     this.isHost = true;
+    this.gameMode = selectedMode;
     this.activePlayer = "host";
     this.pendingRoomCode = null;
     this.showView("lobby");
@@ -283,6 +327,7 @@ class WordGame {
     this.network.init().then((id) => {
       const inviteUrl = new URL(window.location.href);
       inviteUrl.searchParams.set("room", id);
+      inviteUrl.searchParams.set("mode", this.gameMode);
 
       document.getElementById("room-code-display").innerText = id;
       document.querySelector(".loading-text").style.display = "block";
@@ -302,6 +347,10 @@ class WordGame {
   setupGuest(autoJoinCode = null) {
     this.disconnectNetwork();
     this.isHost = false;
+    const modeFromUrl = new URLSearchParams(window.location.search).get("mode");
+    if (modeFromUrl && GAME_MODES[modeFromUrl]) {
+      this.gameMode = modeFromUrl;
+    }
     this.pendingRoomCode = autoJoinCode ? autoJoinCode.toUpperCase() : null;
     this.showView("lobby");
     document.getElementById("lobby-host").classList.add("hidden");
@@ -388,7 +437,8 @@ class WordGame {
       if (this.isHost) {
         // Host decide el estado inicial y lo envía
         const initialState = {
-          targetLetter: getRandomLetter(),
+          mode: this.gameMode,
+          round: 1,
           turnCount: 1,
           activePlayer: "host",
         };
@@ -399,14 +449,21 @@ class WordGame {
   }
 
   startGameSession(state) {
-    this.targetLetter = state.targetLetter;
+    if (state.mode && GAME_MODES[state.mode]) {
+      this.gameMode = state.mode;
+    }
     this.turnCount = state.turnCount;
     this.activePlayer = state.activePlayer;
+    this.currentRound = state.round || getRoundNumber(this.turnCount);
     this.gameActive = true;
     this.usedWords.clear();
     this.wordHistory = [];
     this.myProfile.lives = 3;
     this.opponentProfile.lives = 3;
+    if (this.timerDisplayInterval) {
+      clearInterval(this.timerDisplayInterval);
+      this.timerDisplayInterval = null;
+    }
 
     this.updateHeaderUI();
 
@@ -459,9 +516,12 @@ class WordGame {
   }
 
   startTurn() {
-    document.getElementById("target-letter").innerText = this.targetLetter;
-    document.getElementById("instruction-letter").innerText = this.targetLetter;
-    document.getElementById("fixed-letter").innerText = this.targetLetter;
+    const roundLabel = document.getElementById("round-label");
+    const turnHint = document.getElementById("turn-hint");
+    const targetLetter = document.getElementById("target-letter");
+
+    roundLabel.innerText = `Ronda ${this.currentRound}`;
+    targetLetter.innerText = `R${this.currentRound}`;
 
     const actionZone = document.getElementById("action-zone");
     const spectatorZone = document.getElementById("spectator-zone");
@@ -473,10 +533,13 @@ class WordGame {
     document.getElementById("turn-overlay").classList.add("hidden");
 
     if (this.amIActive()) {
+      turnHint.innerText = "Escribe una palabra válida";
       actionZone.classList.remove("hidden");
       spectatorZone.classList.add("hidden");
       setTimeout(() => input.focus(), 100);
     } else {
+      const activeName = this.getPlayerNameBySide(this.activePlayer);
+      turnHint.innerText = `Le toca a ${activeName}`;
       actionZone.classList.add("hidden");
       spectatorZone.classList.remove("hidden");
       const oppName = this.opponentProfile.name;
@@ -488,11 +551,12 @@ class WordGame {
   }
 
   startTimer() {
-    const duration = getTurnDuration(this.turnCount);
+    const duration = getRoundDuration(this.gameMode, this.currentRound);
     this.timeLeft = duration;
 
     const mecha = document.getElementById("mecha-bar");
     const spark = document.getElementById("mecha-spark");
+    const timeRemaining = document.getElementById("time-remaining");
 
     // Reset visual mecha
     mecha.style.transition = "none";
@@ -506,6 +570,19 @@ class WordGame {
     // Start animation
     mecha.style.transition = `transform ${duration}s linear`;
     spark.style.transition = `right ${duration}s linear`;
+
+    if (this.timerDisplayInterval) {
+      clearInterval(this.timerDisplayInterval);
+    }
+
+    const endTime = Date.now() + duration * 1000;
+    const updateTimerDisplay = () => {
+      const remaining = Math.max(0, (endTime - Date.now()) / 1000);
+      timeRemaining.innerText = `${formatSeconds(remaining)}s`;
+    };
+
+    updateTimerDisplay();
+    this.timerDisplayInterval = setInterval(updateTimerDisplay, 100);
 
     requestAnimationFrame(() => {
       mecha.style.transform = `scaleX(0)`;
@@ -524,11 +601,7 @@ class WordGame {
 
   updateSpectatorTyping(text) {
     const liveBox = document.getElementById("live-typing");
-    if (text.length === 0) {
-      liveBox.innerHTML = `${this.targetLetter}<span class="faded">...</span>`;
-    } else {
-      liveBox.innerHTML = `${this.targetLetter}${text}`;
-    }
+    liveBox.innerText = text.length === 0 ? "Esperando..." : text;
   }
 
   verifyWord() {
@@ -536,16 +609,12 @@ class WordGame {
 
     const inputEl = document.getElementById("word-input");
     const rawWord = inputEl.value;
-    const typedWord = limpiarTexto(rawWord);
-    const targetLetter = limpiarTexto(this.targetLetter);
-    const fullWord = typedWord.startsWith(targetLetter)
-      ? typedWord
-      : targetLetter + typedWord;
+    const fullWord = limpiarTexto(rawWord);
 
     const errorEl = document.getElementById("word-error");
 
     // Validaciones
-    if (typedWord === "") {
+    if (fullWord === "") {
       errorEl.innerText = "Escribe algo.";
       errorEl.classList.remove("hidden");
       return;
@@ -571,18 +640,23 @@ class WordGame {
     // ¡Acierto!
     errorEl.classList.add("hidden");
     clearTimeout(this.timer);
+    this.timer = null;
+    if (this.timerDisplayInterval) {
+      clearInterval(this.timerDisplayInterval);
+      this.timerDisplayInterval = null;
+    }
     this.usedWords.add(fullWord);
 
     // Efecto visual local
     document.body.classList.add("flash-green");
 
     // Registrar para historial
-    const round = Math.ceil(this.turnCount / 2);
+    const round = this.currentRound;
     let historyEntry = this.wordHistory.find((h) => h.round === round);
     if (!historyEntry) {
       historyEntry = {
         round,
-        letter: this.targetLetter,
+        letter: `R${this.currentRound}`,
         hostWord: "",
         guestWord: "",
       };
@@ -592,19 +666,21 @@ class WordGame {
     else historyEntry.guestWord = fullWord;
 
     // Cambiar turno
-    const nextLetter = getRandomLetter();
     const nextPlayer = this.activePlayer === "host" ? "guest" : "host";
+    const nextTurnCount = this.turnCount + 1;
+    const nextRound = getRoundNumber(nextTurnCount);
 
     const nextState = {
-      targetLetter: nextLetter,
-      turnCount: this.turnCount + 1,
+      turnCount: nextTurnCount,
+      round: nextRound,
       activePlayer: nextPlayer,
       lastWord: fullWord,
       history: this.wordHistory,
+      mode: this.gameMode,
     };
 
     this.network.send("WORD_VALIDATED", nextState);
-    this.showTurnChangeOverlay();
+    this.showTurnChangeOverlay(nextState);
 
     setTimeout(() => {
       this.applyNextState(nextState);
@@ -613,18 +689,42 @@ class WordGame {
 
   handleOpponentSuccess(nextState) {
     // El oponente acertó
+    if (this.timerDisplayInterval) {
+      clearInterval(this.timerDisplayInterval);
+      this.timerDisplayInterval = null;
+    }
     this.usedWords.add(nextState.lastWord);
     this.wordHistory = nextState.history;
-    this.showTurnChangeOverlay();
+    this.showTurnChangeOverlay(nextState);
     setTimeout(() => {
       this.applyNextState(nextState);
     }, 3000);
   }
 
-  showTurnChangeOverlay() {
+  getPlayerNameBySide(side) {
+    if (side === "host")
+      return this.isHost ? this.myProfile.name : this.opponentProfile.name;
+    return this.isHost ? this.opponentProfile.name : this.myProfile.name;
+  }
+
+  showTurnChangeOverlay(nextState) {
     const overlay = document.getElementById("turn-overlay");
-    const countSpan = document.getElementById("turn-countdown");
+    const turnMessage = document.getElementById("turn-message");
+    const turnDetail = document.getElementById("turn-detail");
+    const nextPlayerName = this.getPlayerNameBySide(nextState.activePlayer);
+    const nextRoundDuration = getRoundDuration(this.gameMode, nextState.round);
+
     overlay.classList.remove("hidden");
+
+    if (nextState.round > this.currentRound) {
+      turnMessage.innerText = `Cambio de ronda ${nextState.round}`;
+      turnDetail.innerHTML = `Nuevo tiempo: ${formatSeconds(nextRoundDuration)}s por jugada. Sigue <strong>${nextPlayerName}</strong> en <span id="turn-countdown">3</span>...`;
+    } else {
+      turnMessage.innerText = `Sigue el turno de ${nextPlayerName}`;
+      turnDetail.innerHTML = `Comienza en <span id="turn-countdown">3</span>...`;
+    }
+
+    const countSpan = document.getElementById("turn-countdown");
 
     let count = 3;
     countSpan.innerText = count;
@@ -642,6 +742,10 @@ class WordGame {
 
   triggerBoom() {
     // Se acabó el tiempo
+    if (this.timerDisplayInterval) {
+      clearInterval(this.timerDisplayInterval);
+      this.timerDisplayInterval = null;
+    }
     this.myProfile.lives--;
     this.updateHeaderUI();
 
@@ -650,12 +754,15 @@ class WordGame {
     overlay.classList.remove("hidden");
     document.body.classList.add("shake");
 
+    const nextTurnCount = this.turnCount + 1;
+    const nextRound = getRoundNumber(nextTurnCount);
     const nextState = {
-      targetLetter: getRandomLetter(),
-      turnCount: this.turnCount + 1,
+      turnCount: nextTurnCount,
+      round: nextRound,
       activePlayer: this.activePlayer === "host" ? "guest" : "host",
       loser: this.isHost ? "host" : "guest",
       livesRemaining: this.myProfile.lives,
+      mode: this.gameMode,
     };
 
     this.network.send("BOOM", nextState);
@@ -669,6 +776,10 @@ class WordGame {
 
   handleBoom(nextState) {
     // El oponente perdió por tiempo
+    if (this.timerDisplayInterval) {
+      clearInterval(this.timerDisplayInterval);
+      this.timerDisplayInterval = null;
+    }
     this.opponentProfile.lives = nextState.livesRemaining;
     this.updateHeaderUI();
 
@@ -706,9 +817,9 @@ class WordGame {
   }
 
   applyNextState(nextState) {
-    this.targetLetter = nextState.targetLetter;
     this.turnCount = nextState.turnCount;
     this.activePlayer = nextState.activePlayer;
+    this.currentRound = nextState.round || getRoundNumber(this.turnCount);
     if (nextState.history) this.wordHistory = nextState.history;
     this.updateHeaderUI();
     this.startTurn();
@@ -717,6 +828,10 @@ class WordGame {
   showGameOver(winner) {
     this.gameActive = false;
     if (this.timer) clearTimeout(this.timer);
+    if (this.timerDisplayInterval) {
+      clearInterval(this.timerDisplayInterval);
+      this.timerDisplayInterval = null;
+    }
 
     const isMe =
       (winner === "host" && this.isHost) ||
@@ -736,7 +851,7 @@ class WordGame {
 
       item.innerHTML = `
                 <div class="accordion-header">
-                    Ronda ${round.round} - Letra [${round.letter}]
+                    Ronda ${round.round}
                     <span>▼</span>
                 </div>
                 <div class="accordion-content">
