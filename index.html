@@ -19,11 +19,51 @@
     <div class="app-container">
 
       <!-- ══════════════════════════════════════
-           VISTA 1: INICIO
+           VISTA 1: INICIO GLOBAL (JUEGOS BOMBA)
       ══════════════════════════════════════ -->
       <section id="view-home" class="view active">
-        <h1 class="main-title">¡PALABRA <br /><span class="highlight">BOMBA!</span></h1>
-        <p class="subtitle">Agilidad mental, tiempo en contra y muchas palabras.</p>
+        <h1 class="main-title">JUEGOS <br /><span class="highlight">BOMBA!</span></h1>
+        <p class="subtitle">¡Hola! Selecciona un juego para empezar.</p>
+
+        <div class="games-grid">
+          <!-- Tarjeta Palabras Bomba -->
+          <button class="game-card" id="btn-go-palabras" type="button">
+            <div class="game-card-icon">💣</div>
+            <div class="game-card-text">
+              <h3>Palabras Bomba</h3>
+              <p>Agilidad mental, tiempo en contra y muchas palabras.</p>
+            </div>
+            <div class="game-card-arrow">→</div>
+          </button>
+
+          <!-- Tarjeta STOP Bomba -->
+          <button class="game-card" id="btn-go-stop" type="button">
+            <div class="game-card-icon">🛑</div>
+            <div class="game-card-text">
+              <h3>STOP Bomba</h3>
+              <p>Categorías, letra secreta y ¡el primero en gritar STOP!</p>
+            </div>
+            <div class="game-card-arrow">→</div>
+          </button>
+
+          <!-- Tarjeta Adivina Quién Soy (Próximamente) -->
+          <button class="game-card disabled-card" type="button" disabled>
+            <div class="game-card-icon">🎭</div>
+            <div class="game-card-text">
+              <h3>Adivina Quién Soy</h3>
+              <p>¿Podrás descubrir quién eres antes que los demás?</p>
+            </div>
+            <span class="soon-badge">Próximamente</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════════════
+           VISTA 1.1: CONFIG PALABRAS BOMBA
+      ══════════════════════════════════════ -->
+      <section id="view-palabras-config" class="view hidden">
+        <h2 class="section-title">Palabras Bomba</h2>
+        <p class="subtitle">Configura tu partida</p>
 
         <!-- Dificultad -->
         <div class="mode-panel">
@@ -54,13 +94,21 @@
             <button class="mode-pill letter-pill active" data-letter-mode="por-ronda" type="button">
               <span class="pill-emoji">🔄</span>
               <span class="pill-name">Por ronda</span>
-              <span class="pill-times">Letra fija por ronda<br>3 letras en total</span>
+              <span class="pill-times">Cambia al explotar<br>N turnos (auto)</span>
             </button>
             <button class="mode-pill letter-pill" data-letter-mode="por-turno" type="button">
               <span class="pill-emoji">🎲</span>
               <span class="pill-name">Por turno</span>
               <span class="pill-times">Nueva letra en<br>cada jugada</span>
             </button>
+          </div>
+          <div id="rounds-config-container" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; background: var(--bg-secondary); padding: 10px 15px; border-radius: 12px;">
+             <p class="mode-panel-title" style="margin:0; padding:0; border:none;">Rondas (Letras a jugar)</p>
+             <div class="rounds-selector" style="display: flex; align-items: center;">
+                <button type="button" id="btn-rounds-minus" class="btn btn-small" style="padding: 5px 10px;">-</button>
+                <span id="rounds-display" style="font-size: 1.2rem; font-weight: bold; margin: 0 15px; width: 20px; text-align: center;">3</span>
+                <button type="button" id="btn-rounds-plus" class="btn btn-small" style="padding: 5px 10px;">+</button>
+             </div>
           </div>
         </div>
 
@@ -96,22 +144,10 @@
         </div>
 
         <div class="btn-group">
-          <button id="btn-host" class="btn btn-primary">Crear Sala</button>
-          <button id="btn-guest" class="btn btn-secondary">Entrar en Sala</button>
+          <button id="btn-host-palabras" class="btn btn-primary">Crear Sala</button>
+          <button id="btn-guest-palabras" class="btn btn-secondary">Entrar en Sala</button>
         </div>
-
-        <!-- Separador hacia STOP -->
-        <div class="stop-home-divider"><span>✦ otro modo de juego ✦</span></div>
-
-        <!-- Tarjeta STOP Bomba -->
-        <button class="stop-home-card" id="btn-go-stop" type="button">
-          <div class="stop-home-card-icon">🛑</div>
-          <div class="stop-home-card-text">
-            <h3>STOP Bomba</h3>
-            <p>Categorías, letra secreta y ¡el primero en gritar STOP gana la ronda!</p>
-          </div>
-          <div class="stop-home-card-arrow">→</div>
-        </button>
+        <button class="btn btn-text btn-back-home" style="margin-top: 15px;">← Volver al inicio</button>
       </section>
 
 
@@ -121,10 +157,17 @@
       <section id="view-lobby" class="view hidden">
         <h2 class="section-title">Sala de Espera</h2>
         <div id="lobby-host" class="hidden">
-          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:0.5rem;">Comparte este código con tu amigo:</p>
+          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:0.5rem;">Comparte este código con tus amigos:</p>
           <div id="room-code-display" class="code-box">Cargando...</div>
           <div id="qr-container" class="qr-box"></div>
-          <p class="loading-text">Esperando al oponente<span class="dots">...</span></p>
+          
+          <div id="connected-players-list" style="margin-top: 15px; font-weight: bold; color: var(--primary);">
+             <!-- Jugadores conectados -->
+          </div>
+          
+          <button id="btn-start-lobby" class="btn btn-primary hidden" style="margin-top: 15px;">Jugar ya</button>
+          
+          <p id="lobby-waiting-text" class="loading-text">Esperando jugadores<span class="dots">...</span></p>
         </div>
         <div id="lobby-guest" class="hidden">
           <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:1rem;">Ingresa el código de la sala:</p>
@@ -146,8 +189,16 @@
         </div>
         <input type="text" id="player-name-input" class="input-large" placeholder="Tu apodo" maxlength="10" />
         <button id="btn-ready" class="btn btn-primary">¡Estoy Listo! 🎯</button>
-        <p id="ready-status" class="status-text hidden">Esperando al otro jugador<span class="dots">...</span></p>
-        <button class="btn btn-text btn-profile-back">← Volver</button>
+        
+        <div id="ready-players-container" class="hidden" style="margin-top: 20px; width: 100%; text-align: left;">
+           <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--text-main); text-align: center;">Jugadores:</h3>
+           <div id="ready-players-list" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Lista de jugadores (listos en verde, no listos normales) -->
+           </div>
+        </div>
+        
+        <p id="ready-status" class="status-text hidden">Esperando a los demás<span class="dots">...</span></p>
+        <button class="btn btn-text btn-profile-back">← Salir</button>
       </section>
 
       <!-- ══════════════════════════════════════
@@ -161,18 +212,8 @@
            VISTA 5: JUEGO (Palabra Bomba)
       ══════════════════════════════════════ -->
       <section id="view-game" class="view hidden">
-        <header class="game-header">
-          <div class="player-info" id="p1-info">
-            <span class="emoji">😎</span>
-            <span class="name">P1</span>
-            <div class="lives" id="p1-lives">❤️❤️❤️</div>
-          </div>
-          <div class="vs-badge">VS</div>
-          <div class="player-info p2" id="p2-info">
-            <div class="lives" id="p2-lives">❤️❤️❤️</div>
-            <span class="name">P2</span>
-            <span class="emoji">🤖</span>
-          </div>
+        <header class="game-header" id="dynamic-game-header">
+           <!-- Se inyectarán los jugadores dinámicamente -->
         </header>
         <div class="timer-container">
           <div id="mecha-bar" class="mecha"></div>
@@ -289,6 +330,15 @@
 
         <p id="stop-cat-warning" class="error-text hidden" style="margin-bottom:0.8rem;">¡Selecciona al menos 2 categorías!</p>
 
+        <div style="margin: 15px 0;">
+          <label style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px; display: block;">⏳ Tiempo por ronda (minutos):</label>
+          <div style="display: flex; justify-content: center; align-items: center; gap: 15px; background: var(--bg-card); padding: 10px; border-radius: 12px;">
+            <button class="btn btn-secondary" id="btn-stop-time-minus" style="padding: 5px 15px;">-</button>
+            <span id="stop-time-display" style="font-size: 1.2rem; font-weight: bold; width: 30px;">5</span>
+            <button class="btn btn-secondary" id="btn-stop-time-plus" style="padding: 5px 15px;">+</button>
+          </div>
+        </div>
+
         <div class="btn-group" style="margin-top:1rem;">
           <button id="btn-stop-host" class="btn btn-primary">🛑 Crear Sala STOP</button>
           <button id="btn-stop-guest" class="btn btn-secondary">Entrar a Sala STOP</button>
@@ -302,10 +352,16 @@
         <h2 class="section-title">Sala de Espera</h2>
 
         <div id="stop-lobby-host" class="hidden">
-          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:0.5rem;">Comparte este código con tu amigo:</p>
+          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:0.5rem;">Comparte este código con tus amigos:</p>
           <div id="stop-room-code-display" class="code-box">Cargando...</div>
           <div id="stop-qr-container" class="qr-box"></div>
-          <p class="loading-text">Esperando al oponente<span class="dots">...</span></p>
+          
+          <div id="stop-connected-players-list" style="margin-top: 15px; font-weight: bold; color: var(--primary);">
+             <!-- Jugadores conectados -->
+          </div>
+          
+          <button id="btn-start-stop-lobby" class="btn btn-primary hidden" style="margin-top: 15px;">Jugar ya</button>
+          <p id="stop-lobby-waiting-text" class="loading-text">Esperando jugadores<span class="dots">...</span></p>
         </div>
 
         <div id="stop-lobby-guest" class="hidden">
@@ -328,8 +384,16 @@
         </div>
         <input type="text" id="stop-player-name-input" class="input-large" placeholder="Tu apodo" maxlength="10" />
         <button id="btn-stop-ready" class="btn btn-primary">¡Estoy Listo! 🎯</button>
-        <p id="stop-ready-status" class="status-text hidden">Esperando al otro jugador<span class="dots">...</span></p>
-        <button class="btn btn-text btn-stop-profile-back">← Volver</button>
+        
+        <div id="stop-ready-players-container" class="hidden" style="margin-top: 20px; width: 100%; text-align: left;">
+           <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--text-main); text-align: center;">Jugadores:</h3>
+           <div id="stop-ready-players-list" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Lista de jugadores (listos en verde, no listos normales) -->
+           </div>
+        </div>
+        
+        <p id="stop-ready-status" class="status-text hidden">Esperando a los demás<span class="dots">...</span></p>
+        <button class="btn btn-text btn-stop-profile-back">← Salir</button>
       </section>
 
       <!-- VISTA S4: Cuenta regresiva STOP + Revelación de letra -->
@@ -348,23 +412,14 @@
 
       <!-- VISTA S5: Juego STOP -->
       <section id="view-stop-game" class="view hidden">
-        <!-- Header jugadores con puntuación -->
-        <header class="game-header stop-game-header">
-          <div class="player-info" id="sp1-info">
-            <span class="emoji">😎</span>
-            <span class="name" id="sp1-name">P1</span>
-            <div class="stop-score-chip" id="sp1-score">0 pts</div>
-          </div>
-          <div class="stop-round-center">
-            <div class="stop-round-badge" id="stop-round-label">R1/5</div>
-            <div class="stop-current-letter" id="stop-current-letter">A</div>
-          </div>
-          <div class="player-info p2" id="sp2-info">
-            <div class="stop-score-chip" id="sp2-score">0 pts</div>
-            <span class="name" id="sp2-name">P2</span>
-            <span class="emoji">🤖</span>
-          </div>
+        <header class="game-header stop-game-header" id="dynamic-stop-game-header">
+           <!-- Se inyectarán los jugadores dinámicamente -->
         </header>
+
+        <div class="stop-global-timer-container" style="text-align: center; margin: 10px 0;">
+           <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Tiempo restante</div>
+           <div id="stop-global-timer" style="font-size: 2.5rem; font-family: monospace; font-weight: 900; color: var(--accent); text-shadow: 0 0 10px rgba(255,42,109,0.3);">5:00</div>
+        </div>
 
         <p class="stop-letter-hint">Escribe con la letra <strong id="stop-hint-letter">A</strong> en cada categoría</p>
 

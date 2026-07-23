@@ -2,10 +2,10 @@ class PeerNetwork {
   constructor(isHost, onStateChange) {
     this.isHost = isHost;
     this.peer = null;
-    this.connection = null;
+    this.connections = {}; // { peerId: conn }
     this.onStateChange = onStateChange; // Callback para informar a app.js
     this.myId = null;
-    this.opponentId = null;
+    this.hostId = null;
   }
 
   // Inicializa la conexión
@@ -28,6 +28,9 @@ class PeerNetwork {
       this.peer.on("open", (id) => {
         this.myId = id;
         console.log("My peer ID is: " + id);
+        if (this.isHost) {
+          this.hostId = id;
+        }
         resolve(id);
       });
 
@@ -37,7 +40,7 @@ class PeerNetwork {
         reject(err);
       });
 
-      // Si somos Host, escuchamos conexiones entrantes
+      // Si somos Host, escuchamos múltiples conexiones entrantes
       if (this.isHost) {
         this.peer.on("connection", (conn) => {
           this.setupConnection(conn);
@@ -59,17 +62,17 @@ class PeerNetwork {
   joinRoom(hostId) {
     return new Promise((resolve, reject) => {
       if (!this.peer) return reject("Peer not initialized");
+      this.hostId = hostId.toUpperCase();
 
-      const conn = this.peer.connect(hostId.toUpperCase(), { reliable: true });
+      const conn = this.peer.connect(this.hostId, { reliable: true });
       let settled = false;
+      
       const cleanupFailure = (err) => {
         if (settled) return;
         settled = true;
         try {
           conn.close();
-        } catch (_) {
-          // ignore cleanup errors
-        }
+        } catch (_) {}
         reject(err);
       };
 
@@ -100,45 +103,87 @@ class PeerNetwork {
   }
 
   setupConnection(conn) {
-    this.connection = conn;
-    this.opponentId = conn.peer;
-    console.log("Connected to: ", this.opponentId);
+    const peerId = conn.peer;
+    this.connections[peerId] = conn;
+    console.log("Connected to: ", peerId);
 
-    // Notificar que estamos conectados
-    this.onStateChange({ type: "CONNECTED", payload: this.opponentId });
+    // Notificar conexión
+    if (this.isHost) {
+      // Como host, notificamos que se conectó un cliente
+      this.onStateChange({ type: "CLIENT_CONNECTED", payload: peerId });
+    } else {
+      // Como cliente, notificamos que nos conectamos al host
+      this.onStateChange({ type: "CONNECTED", payload: peerId });
+    }
 
     // Escuchar mensajes
-    this.connection.on("data", (data) => {
-      console.log("Received data:", data);
-      this.onStateChange(data); // data debe ser un objeto con {type, payload}
+    conn.on("data", (data) => {
+      console.log("Received data from " + peerId + ":", data);
+      
+      // Añadir el senderId al payload si es un objeto, útil para el host
+      if (typeof data === 'object' && data !== null) {
+        data._senderId = peerId;
+      }
+      
+      this.onStateChange(data);
     });
 
-    this.connection.on("close", () => {
-      console.log("Connection closed");
-      this.onStateChange({ type: "DISCONNECTED" });
+    conn.on("close", () => {
+      console.log("Connection closed: ", peerId);
+      delete this.connections[peerId];
+      
+      if (this.isHost) {
+        this.onStateChange({ type: "CLIENT_DISCONNECTED", payload: peerId });
+      } else {
+        this.onStateChange({ type: "DISCONNECTED" });
+      }
     });
   }
 
-  // Enviar datos al otro jugador
-  send(type, payload) {
-    if (this.connection && this.connection.open) {
-      const message = { type, payload };
-      this.connection.send(message);
+  // Enviar datos
+  // Si somos host, enviamos a TODOS los clientes (broadcast) o a un objetivo específico.
+  // Si somos cliente, enviamos al host.
+  send(type, payload, targetPeerId = null) {
+    const message = { type, payload };
+    
+    if (this.isHost) {
+      if (targetPeerId) {
+        // Enviar a un cliente específico
+        const conn = this.connections[targetPeerId];
+        if (conn && conn.open) {
+          conn.send(message);
+        }
+      } else {
+        // Broadcast a todos
+        Object.values(this.connections).forEach(conn => {
+          if (conn.open) {
+            conn.send(message);
+          }
+        });
+      }
     } else {
-      console.warn("Connection is not open. Cannot send message.");
+      // Cliente envía al host
+      const conn = this.connections[this.hostId];
+      if (conn && conn.open) {
+        conn.send(message);
+      } else {
+        console.warn("Connection to host is not open.");
+      }
     }
   }
 
   disconnect() {
-    if (this.connection) {
-      this.connection.close();
-    }
+    Object.values(this.connections).forEach(conn => {
+      try { conn.close(); } catch(e) {}
+    });
+    this.connections = {};
+    
     if (this.peer) {
       this.peer.destroy();
     }
-    this.connection = null;
     this.peer = null;
     this.myId = null;
-    this.opponentId = null;
+    this.hostId = null;
   }
 }
+

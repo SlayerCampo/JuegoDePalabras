@@ -93,24 +93,22 @@ class WordGame {
     this.exitCountdownTimer = null;
     this.timerDisplayInterval = null;
 
-    // Estado del Jugador Local
-    this.myProfile = {
-      name: "Player 1",
-      emoji: EMOJIS[0],
-      lives: 3,
-      isReady: false,
+    // Estado de Jugadores (N jugadores)
+    this.players = {
+      host: {
+        name: "Host",
+        emoji: EMOJIS[0],
+        lives: 3,
+        isReady: false,
+        id: "host"
+      }
     };
-    this.opponentProfile = {
-      name: "Player 2",
-      emoji: EMOJIS[1],
-      lives: 3,
-      isReady: false,
-    };
+    this.playerOrder = []; // Array of ids
+    this.activePlayerIndex = 0; // Index in playerOrder
 
     // Estado de la Partida
     this.gameActive = false;
     this.turnCount = 1;
-    this.activePlayer = "host"; // 'host' o 'guest'
     this.currentRound = 1;
     this.currentLetter = getRandomLetter();
     this.letterMode = "por-ronda"; // 'por-ronda' | 'por-turno'
@@ -159,12 +157,29 @@ class WordGame {
     // Vistas
     this.views = {
       home: document.getElementById("view-home"),
+      palabrasConfig: document.getElementById("view-palabras-config"),
       lobby: document.getElementById("view-lobby"),
       profile: document.getElementById("view-profile"),
       countdown: document.getElementById("view-countdown"),
       game: document.getElementById("view-game"),
       gameover: document.getElementById("view-gameover"),
     };
+
+    // Configuración de rondas
+    this.roundsCount = 3; // valor por defecto
+    const roundsDisplay = document.getElementById("rounds-display");
+    document.getElementById("btn-rounds-minus").addEventListener("click", () => {
+      if (this.roundsCount > 1) {
+        this.roundsCount--;
+        roundsDisplay.innerText = this.roundsCount;
+      }
+    });
+    document.getElementById("btn-rounds-plus").addEventListener("click", () => {
+      if (this.roundsCount < 10) {
+        this.roundsCount++;
+        roundsDisplay.innerText = this.roundsCount;
+      }
+    });
 
     // Selección de DIFICULTAD (pills con data-mode)
     document.querySelectorAll(".mode-pill[data-mode]").forEach((pill) => {
@@ -185,19 +200,39 @@ class WordGame {
           p.classList.remove("active")
         );
         pill.classList.add("active");
+        
+        // Mostrar/ocultar config de rondas
+        const roundsConfig = document.getElementById("rounds-config-container");
+        if (this.letterMode === "por-ronda") {
+          roundsConfig.style.display = "flex";
+        } else {
+          roundsConfig.style.display = "none";
+        }
       });
     });
 
-    // Botones de navegación base
+    // Navegación Menú Principal (Juegos Bomba)
+    document.getElementById("btn-go-palabras").addEventListener("click", () => {
+      this.showView("palabras-config");
+    });
+    document.getElementById("btn-go-stop").addEventListener("click", () => {
+      this.showView("stop-config");
+    });
+    document.querySelector(".btn-back-home").addEventListener("click", () => {
+      this.showView("home");
+    });
+
+    // Botones de red (Palabras Bomba)
     document
-      .getElementById("btn-host")
+      .getElementById("btn-host-palabras")
       .addEventListener("click", () => this.setupHost(this.gameMode));
     document
-      .getElementById("btn-guest")
+      .getElementById("btn-guest-palabras")
       .addEventListener("click", () => this.setupGuest());
+      
     document.querySelector(".btn-back").addEventListener("click", () => {
       if (this.network) this.network.disconnect();
-      this.showView("home");
+      this.showView("palabras-config");
     });
 
     // Lobby
@@ -219,14 +254,33 @@ class WordGame {
       const nameInput = document
         .getElementById("player-name-input")
         .value.trim();
-      if (nameInput) this.myProfile.name = nameInput;
+      
+      const myId = this.isHost ? "host" : this.network.myId;
+      if (!this.players[myId]) {
+        this.players[myId] = { id: myId, lives: 3 };
+      }
+      
+      if (nameInput) this.players[myId].name = nameInput;
+      this.players[myId].emoji = document.getElementById("current-emoji").innerText;
+      this.players[myId].isReady = true;
 
-      this.myProfile.isReady = true;
       document.getElementById("btn-ready").classList.add("hidden");
       document.getElementById("ready-status").classList.remove("hidden");
 
-      this.network.send("PROFILE_READY", this.myProfile);
-      this.checkBothReady();
+      this.network.send("PROFILE_READY", this.players[myId]);
+      
+      if (this.isHost) {
+        this.broadcastLobbyState();
+        this.checkAllReady();
+      }
+    });
+
+    // Host start lobby button
+    document.getElementById("btn-start-lobby").addEventListener("click", () => {
+       if (this.isHost) {
+          this.network.send("GO_TO_PROFILE", {});
+          this.showView("profile");
+       }
     });
 
     // Juego
@@ -282,7 +336,7 @@ class WordGame {
 
   showView(viewName) {
     const allViewIds = [
-      'view-home','view-lobby','view-profile','view-countdown',
+      'view-home','view-palabras-config','view-lobby','view-profile','view-countdown',
       'view-game','view-gameover',
       'view-stop-config','view-stop-lobby','view-stop-profile',
       'view-stop-countdown','view-stop-game','view-stop-review',
@@ -320,10 +374,19 @@ class WordGame {
       this.timerDisplayInterval = null;
     }
     this.timeLeft = 0;
-    this.myProfile.isReady = false;
-    this.opponentProfile.isReady = false;
-    this.myProfile.lives = 3;
-    this.opponentProfile.lives = 3;
+    
+    // Resetear a solo yo
+    const myId = this.isHost ? "host" : (this.network ? this.network.myId : "guest");
+    this.players = {};
+    this.players[myId] = {
+      name: "Jugador",
+      emoji: EMOJIS[0],
+      lives: 3,
+      isReady: false,
+      id: myId
+    };
+    this.playerOrder = [];
+    this.activePlayerIndex = 0;
 
     document.getElementById("btn-ready").classList.remove("hidden");
     document.getElementById("ready-status").classList.add("hidden");
@@ -477,18 +540,52 @@ class WordGame {
 
   handleNetworkMessage(msg) {
     switch (msg.type) {
-      case "CONNECTED":
+      case "CLIENT_CONNECTED": // Solo Host
+        if (this.isHost && msg.payload) {
+          const newPlayerId = msg.payload;
+          this.players[newPlayerId] = {
+            name: "Invitado",
+            emoji: EMOJIS[1],
+            lives: 3,
+            isReady: false,
+            id: newPlayerId
+          };
+          this.updateHostLobbyUI();
+        }
+        break;
+      case "CLIENT_DISCONNECTED": // Solo Host
+        if (this.isHost && msg.payload) {
+          delete this.players[msg.payload];
+          this.updateHostLobbyUI();
+          this.broadcastLobbyState();
+        }
+        break;
+      case "CONNECTED": // Solo Guest
+        // Esperamos a que el host nos mande GO_TO_PROFILE o estado del lobby
+        document.getElementById("join-error").classList.add("hidden");
+        break;
+      case "GO_TO_PROFILE": // Guest recibe orden de ir al perfil
         this.showView("profile");
         break;
+      case "LOBBY_STATE": // Guest recibe estado de los jugadores listos
+        this.players = msg.payload;
+        this.updateReadyUI();
+        break;
       case "DISCONNECTED":
-        // ✅ FIX: Modal bonito en lugar del alert() nativo del navegador
         this.showDisconnectModal();
         break;
-      case "PROFILE_READY":
-        this.opponentProfile.name = msg.payload.name;
-        this.opponentProfile.emoji = msg.payload.emoji;
-        this.opponentProfile.isReady = true;
-        this.checkBothReady();
+      case "PROFILE_READY": // Host recibe que alguien está listo
+        if (this.isHost) {
+          const senderId = msg._senderId || msg.payload.id;
+          if (this.players[senderId]) {
+            this.players[senderId].name = msg.payload.name;
+            this.players[senderId].emoji = msg.payload.emoji;
+            this.players[senderId].isReady = true;
+          }
+          this.broadcastLobbyState();
+          this.updateReadyUI();
+          this.checkAllReady();
+        }
         break;
       case "START_GAME":
         this.startGameSession(msg.payload);
@@ -510,21 +607,77 @@ class WordGame {
     }
   }
 
-  // --- Flujo de Preparación ---
-  checkBothReady() {
-    if (this.myProfile.isReady && this.opponentProfile.isReady) {
-      if (this.isHost) {
-        const initialState = {
-          mode: this.gameMode,
-          letterMode: this.letterMode,
-          round: 1,
-          turnCount: 1,
-          activePlayer: "host",
-          currentLetter: this.currentLetter,
-        };
-        this.network.send("START_GAME", initialState);
-        this.startGameSession(initialState);
+  updateHostLobbyUI() {
+    const list = document.getElementById("connected-players-list");
+    const count = Object.keys(this.players).length;
+    list.innerHTML = "";
+    if (count > 1) {
+      list.innerHTML = `Hay ${count} jugadores en la sala.`;
+      document.getElementById("btn-start-lobby").classList.remove("hidden");
+      document.getElementById("lobby-waiting-text").classList.add("hidden");
+    } else {
+      document.getElementById("btn-start-lobby").classList.add("hidden");
+      document.getElementById("lobby-waiting-text").classList.remove("hidden");
+    }
+  }
+
+  broadcastLobbyState() {
+    if (this.isHost) {
+      this.network.send("LOBBY_STATE", this.players);
+    }
+  }
+
+  updateReadyUI() {
+    const container = document.getElementById("ready-players-container");
+    const list = document.getElementById("ready-players-list");
+    container.classList.remove("hidden");
+    list.innerHTML = "";
+    
+    Object.values(this.players).forEach(p => {
+      const el = document.createElement("div");
+      el.style.display = "flex";
+      el.style.alignItems = "center";
+      el.style.gap = "10px";
+      el.style.padding = "5px 10px";
+      el.style.borderRadius = "8px";
+      el.style.background = "var(--bg-card)";
+      
+      if (p.isReady) {
+        el.style.opacity = "0.5";
+        el.style.border = "1px solid var(--success)";
+        el.innerHTML = `<span style="font-size:1.2rem;">${p.emoji}</span> <span style="flex:1;">${p.name}</span> <span style="color:var(--success);">✔ Listo</span>`;
+      } else {
+        el.style.border = "1px solid var(--border)";
+        el.innerHTML = `<span style="font-size:1.2rem;">${p.emoji}</span> <span style="flex:1;">${p.name}</span> <span style="color:var(--text-muted);">Esperando...</span>`;
       }
+      list.appendChild(el);
+    });
+  }
+
+  // --- Flujo de Preparación ---
+  checkAllReady() {
+    if (!this.isHost) return;
+    
+    const allReady = Object.values(this.players).every(p => p.isReady);
+    if (allReady && Object.keys(this.players).length >= 2) {
+      // Orden aleatorio o el host primero
+      this.playerOrder = Object.keys(this.players);
+      this.activePlayerIndex = 0;
+      
+      const initialState = {
+        mode: this.gameMode,
+        letterMode: this.letterMode,
+        round: 1,
+        turnCount: 1,
+        activePlayer: this.playerOrder[this.activePlayerIndex],
+        playerOrder: this.playerOrder,
+        players: this.players,
+        currentLetter: this.currentLetter,
+        roundsCount: this.roundsCount
+      };
+      
+      this.network.send("START_GAME", initialState);
+      this.startGameSession(initialState);
     }
   }
 
@@ -574,29 +727,46 @@ class WordGame {
 
   // --- Lógica de Juego ---
   amIActive() {
-    return (
-      (this.isHost && this.activePlayer === "host") ||
-      (!this.isHost && this.activePlayer === "guest")
-    );
+    const myId = this.isHost ? "host" : this.network.myId;
+    return this.activePlayer === myId;
+  }
+
+  getPlayerNameById(id) {
+    return this.players[id] ? this.players[id].name : "Desconocido";
   }
 
   updateHeaderUI() {
-    const p1 = this.isHost ? this.myProfile : this.opponentProfile;
-    const p2 = this.isHost ? this.opponentProfile : this.myProfile;
-
-    document.getElementById("p1-info").querySelector(".name").innerText =
-      p1.name;
-    document.getElementById("p1-info").querySelector(".emoji").innerText =
-      p1.emoji;
-    document.getElementById("p1-lives").innerText =
-      "❤️".repeat(p1.lives) + "🖤".repeat(3 - p1.lives);
-
-    document.getElementById("p2-info").querySelector(".name").innerText =
-      p2.name;
-    document.getElementById("p2-info").querySelector(".emoji").innerText =
-      p2.emoji;
-    document.getElementById("p2-lives").innerText =
-      "❤️".repeat(p2.lives) + "🖤".repeat(3 - p2.lives);
+    const myId = this.isHost ? "host" : (this.network ? this.network.myId : "guest");
+    const activePlayerId = this.activePlayer;
+    
+    const p1Container = document.getElementById("p1-info");
+    const p2Container = document.getElementById("p2-info");
+    const vsBadge = document.querySelector(".vs-badge");
+    
+    // Configurar p1 (siempre el jugador activo)
+    const activeP = this.players[activePlayerId];
+    if (activeP) {
+      p1Container.querySelector(".name").innerText = activeP.name;
+      p1Container.querySelector(".emoji").innerText = activeP.emoji;
+      document.getElementById("p1-lives").innerText = "❤️".repeat(activeP.lives) + "🖤".repeat(3 - activeP.lives);
+    }
+    
+    // Si yo soy el activo, solo me veo a mi
+    if (myId === activePlayerId) {
+       p2Container.style.display = "none";
+       vsBadge.style.display = "none";
+    } else {
+       // Si yo no soy el activo, me veo a mi en p2
+       p2Container.style.display = "flex";
+       vsBadge.style.display = "block";
+       
+       const myP = this.players[myId];
+       if (myP) {
+          p2Container.querySelector(".name").innerText = myP.name;
+          p2Container.querySelector(".emoji").innerText = myP.emoji;
+          document.getElementById("p2-lives").innerText = "❤️".repeat(myP.lives) + "🖤".repeat(3 - myP.lives);
+       }
+    }
   }
 
   startTurn() {
@@ -623,12 +793,11 @@ class WordGame {
       spectatorZone.classList.add("hidden");
       setTimeout(() => input.focus(), 100);
     } else {
-      const activeName = this.getPlayerNameBySide(this.activePlayer);
+      const activeName = this.getPlayerNameById(this.activePlayer);
       turnHint.innerText = `Le toca a ${activeName}`;
       actionZone.classList.add("hidden");
       spectatorZone.classList.remove("hidden");
-      const oppName = this.opponentProfile.name;
-      document.getElementById("active-player-name").innerText = oppName;
+      document.getElementById("active-player-name").innerText = activeName;
       this.updateSpectatorTyping("");
     }
 
@@ -746,39 +915,43 @@ class WordGame {
 
     document.body.classList.add("flash-green");
 
-    // ✅ FIX: Guardar la letra actual correctamente (era `R${round}`)
+    // ✅ Guardar la jugada en el historial
     const round = this.currentRound;
-    let historyEntry = this.wordHistory.find((h) => h.round === round);
+    let historyEntry = this.wordHistory.find((h) => h.round === round && h.letter === this.currentLetter);
     if (!historyEntry) {
       historyEntry = {
         round,
-        letter: this.currentLetter, // ← CORRECTO: la letra real, no "R1"
-        hostWord: "",
-        guestWord: "",
+        letter: this.currentLetter,
+        words: {} // id -> word
       };
       this.wordHistory.push(historyEntry);
     }
-    if (this.isHost) historyEntry.hostWord = fullWord;
-    else historyEntry.guestWord = fullWord;
+    historyEntry.words[this.activePlayer] = fullWord;
 
     // Cambiar turno
-    const nextPlayer = this.activePlayer === "host" ? "guest" : "host";
+    const nextPlayerIndex = (this.activePlayerIndex + 1) % this.playerOrder.length;
+    const nextPlayer = this.playerOrder[nextPlayerIndex];
     const nextTurnCount = this.turnCount + 1;
-    const nextRound = getRoundNumber(nextTurnCount);
+    
+    // Cálculo de rondas (2 turnos por jugador = 1 ronda)
+    const playersCount = this.playerOrder.length;
+    const turnsPerRound = playersCount * 2;
+    const nextRound = Math.floor((nextTurnCount - 1) / turnsPerRound) + 1;
 
     const nextState = {
       turnCount: nextTurnCount,
       round: nextRound,
       activePlayer: nextPlayer,
+      activePlayerIndex: nextPlayerIndex,
       lastWord: fullWord,
       history: this.wordHistory,
       mode: this.gameMode,
       letterMode: this.letterMode,
-      // Cambio de letra según el modo elegido
+      // Cambio de letra
       currentLetter:
         this.letterMode === "por-turno"
-          ? getRandomLetter(this.currentLetter)          // cambia cada turno
-          : nextRound > this.currentRound                // por-ronda: solo al cambiar ronda
+          ? getRandomLetter(this.currentLetter)
+          : nextRound > this.currentRound
             ? getRandomLetter(this.currentLetter)
             : this.currentLetter,
     };
@@ -805,9 +978,7 @@ class WordGame {
   }
 
   getPlayerNameBySide(side) {
-    if (side === "host")
-      return this.isHost ? this.myProfile.name : this.opponentProfile.name;
-    return this.isHost ? this.opponentProfile.name : this.myProfile.name;
+    return this.getPlayerNameById(side);
   }
 
   showTurnChangeOverlay(nextState) {
@@ -847,24 +1018,40 @@ class WordGame {
       clearInterval(this.timerDisplayInterval);
       this.timerDisplayInterval = null;
     }
-    this.myProfile.lives--;
+    const myId = this.isHost ? "host" : this.network.myId;
+    this.players[myId].lives--;
     this.updateHeaderUI();
 
     const overlay = document.getElementById("boom-overlay");
     overlay.classList.remove("hidden");
     document.body.classList.add("shake");
 
+    // Guardar BOOM en el historial
+    const round = this.currentRound;
+    let historyEntry = this.wordHistory.find((h) => h.round === round && h.letter === this.currentLetter);
+    if (!historyEntry) {
+      historyEntry = { round, letter: this.currentLetter, words: {} };
+      this.wordHistory.push(historyEntry);
+    }
+    historyEntry.words[myId] = "💥 BOOM";
+
     const nextTurnCount = this.turnCount + 1;
-    const nextRound = getRoundNumber(nextTurnCount);
+    const playersCount = this.playerOrder.length;
+    const turnsPerRound = playersCount * 2;
+    const nextRound = Math.floor((nextTurnCount - 1) / turnsPerRound) + 1;
+    
+    const nextPlayerIndex = (this.activePlayerIndex + 1) % this.playerOrder.length;
+
     const nextState = {
       turnCount: nextTurnCount,
       round: nextRound,
-      activePlayer: this.activePlayer === "host" ? "guest" : "host",
-      loser: this.isHost ? "host" : "guest",
-      livesRemaining: this.myProfile.lives,
+      activePlayer: this.playerOrder[nextPlayerIndex],
+      activePlayerIndex: nextPlayerIndex,
+      loser: myId,
+      livesRemaining: this.players[myId].lives,
+      history: this.wordHistory,
       mode: this.gameMode,
       letterMode: this.letterMode,
-      // Cambio de letra según el modo elegido (tras BOOM siempre cambia, es un reset)
       currentLetter:
         this.letterMode === "por-turno"
           ? getRandomLetter(this.currentLetter)
@@ -887,7 +1074,10 @@ class WordGame {
       clearInterval(this.timerDisplayInterval);
       this.timerDisplayInterval = null;
     }
-    this.opponentProfile.lives = nextState.livesRemaining;
+    if (nextState.loser && this.players[nextState.loser]) {
+      this.players[nextState.loser].lives = nextState.livesRemaining;
+    }
+    this.wordHistory = nextState.history;
     this.updateHeaderUI();
 
     const overlay = document.getElementById("boom-overlay");
@@ -902,16 +1092,17 @@ class WordGame {
   }
 
   checkGameOverOrContinue(nextState) {
-    if (this.myProfile.lives <= 0 || this.opponentProfile.lives <= 0) {
-      const winner =
-        this.myProfile.lives > 0
-          ? this.isHost
-            ? "host"
-            : "guest"
-          : this.isHost
-            ? "guest"
-            : "host";
-
+    const deadPlayer = Object.values(this.players).find(p => p.lives <= 0);
+    if (deadPlayer) {
+      // Encuentra el ganador (el de más vidas)
+      let winner = null;
+      let maxLives = -1;
+      Object.values(this.players).forEach(p => {
+         if (p.lives > maxLives) {
+            maxLives = p.lives;
+            winner = p.id;
+         }
+      });
       if (this.isHost) {
         this.network.send("GAME_OVER", { winner, history: this.wordHistory });
       }
@@ -924,11 +1115,17 @@ class WordGame {
   applyNextState(nextState) {
     this.turnCount = nextState.turnCount;
     this.activePlayer = nextState.activePlayer;
-    this.currentRound = nextState.round || getRoundNumber(this.turnCount);
+    if (nextState.activePlayerIndex !== undefined) {
+      this.activePlayerIndex = nextState.activePlayerIndex;
+    }
+    if (nextState.playerOrder) {
+      this.playerOrder = nextState.playerOrder;
+    }
+    this.currentRound = nextState.round;
     this.currentLetter = nextState.currentLetter;
-    // Sincronizar letterMode si viene en el estado (ambos jugadores en sync)
     if (nextState.letterMode) this.letterMode = nextState.letterMode;
     if (nextState.history) this.wordHistory = nextState.history;
+    if (nextState.players) this.players = nextState.players;
     this.updateHeaderUI();
     this.startTurn();
   }
@@ -941,10 +1138,7 @@ class WordGame {
       this.timerDisplayInterval = null;
     }
 
-    const isMe =
-      (winner === "host" && this.isHost) ||
-      (winner === "guest" && !this.isHost);
-    const winnerProfile = isMe ? this.myProfile : this.opponentProfile;
+    const winnerProfile = this.players[winner] || { name: "Desconocido", emoji: "🏆" };
 
     document.getElementById("winner-emoji").innerText = winnerProfile.emoji;
     document.getElementById("winner-name").innerText = winnerProfile.name;
@@ -956,7 +1150,7 @@ class WordGame {
     if (this.wordHistory.length === 0) {
       historyContainer.innerHTML = `<p style="text-align:center;color:var(--text-muted);font-size:0.9rem;font-family:var(--font-body);">No hay palabras registradas.</p>`;
     } else {
-      this.wordHistory.forEach((round) => {
+      this.wordHistory.forEach((round, index) => {
         const item = document.createElement("div");
         item.className = "accordion-item";
 
@@ -973,20 +1167,24 @@ class WordGame {
             ">${round.letter}</span>`
           : "";
 
+        let wordsHTML = "";
+        Object.entries(round.words).forEach(([playerId, word]) => {
+           const pName = this.getPlayerNameById(playerId);
+           wordsHTML += `
+            <div class="word-row">
+              <span class="player">${pName}:</span>
+              <span>${word}</span>
+            </div>
+           `;
+        });
+
         item.innerHTML = `
           <div class="accordion-header">
-            <span>Ronda ${round.round}${letterBadge}</span>
+            <span>Turno ${index + 1} (Ronda ${round.round}) ${letterBadge}</span>
             <span style="color:var(--text-muted);font-size:0.85rem;">▼</span>
           </div>
           <div class="accordion-content">
-            <div class="word-row">
-              <span class="player">${this.isHost ? this.myProfile.name : this.opponentProfile.name}:</span>
-              <span>${this.isHost ? round.hostWord || "💥 BOOM" : round.guestWord || "💥 BOOM"}</span>
-            </div>
-            <div class="word-row">
-              <span class="player">${this.isHost ? this.opponentProfile.name : this.myProfile.name}:</span>
-              <span>${this.isHost ? round.guestWord || "💥 BOOM" : round.hostWord || "💥 BOOM"}</span>
-            </div>
+            ${wordsHTML}
           </div>
         `;
 
@@ -1004,8 +1202,7 @@ class WordGame {
   resetGame(isReplay) {
     document.getElementById("btn-ready").classList.remove("hidden");
     document.getElementById("ready-status").classList.add("hidden");
-    this.myProfile.isReady = false;
-    this.opponentProfile.isReady = false;
+    Object.values(this.players).forEach(p => p.isReady = false);
 
     if (isReplay) {
       this.showView("profile");
