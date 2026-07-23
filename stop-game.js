@@ -42,6 +42,7 @@ class StopGame {
     // Estados de UI
     this.reviewDone     = false; // si ya terminé de votar en esta ronda
     this.stopTriggeredBy = null; // id de quien dio STOP (o 'time')
+    this.myProfile      = { name: '', emoji: '😎', isReady: false };
 
     this.initDOM();
   }
@@ -118,9 +119,16 @@ class StopGame {
     // ── Perfil STOP ──
     let stopEmojiIdx = 0;
     document.getElementById('btn-stop-change-emoji').addEventListener('click', () => {
-      stopEmojiIdx = (stopEmojiIdx + 1) % EMOJIS.length;
-      this.myProfile.emoji = EMOJIS[stopEmojiIdx];
-      document.getElementById('stop-current-emoji').innerText = this.myProfile.emoji;
+      // EMOJIS viene de app.js
+      if (typeof EMOJIS !== 'undefined') {
+        stopEmojiIdx = (stopEmojiIdx + 1) % EMOJIS.length;
+        this.myProfile.emoji = EMOJIS[stopEmojiIdx];
+        document.getElementById('stop-current-emoji').innerText = this.myProfile.emoji;
+      }
+    });
+
+    document.getElementById('stop-player-name-input').addEventListener('input', (e) => {
+      document.getElementById('btn-stop-ready').disabled = e.target.value.trim().length === 0;
     });
 
     document.getElementById('btn-stop-ready').addEventListener('click', () => {
@@ -129,13 +137,34 @@ class StopGame {
       this.myProfile.isReady = true;
       document.getElementById('btn-stop-ready').classList.add('hidden');
       document.getElementById('stop-ready-status').classList.remove('hidden');
-      this.network.send('STOP_PROFILE_READY', this.myProfile);
-      this._checkBothReady();
+      
+      const myId = this.isHost ? "host" : this.network.myId;
+      this.myProfile.id = myId;
+      
+      if (this.isHost) {
+        if (this.players[myId]) {
+           this.players[myId].name = this.myProfile.name;
+           this.players[myId].emoji = this.myProfile.emoji;
+           this.players[myId].isReady = true;
+        }
+        this._broadcastLobbyState();
+        this._updateReadyUI();
+        this._checkAllReady();
+      } else {
+        this.network.send('STOP_PROFILE_READY', this.myProfile);
+      }
     });
 
     document.querySelector('.btn-stop-profile-back').addEventListener('click', () => {
       this._disconnectNetwork();
       this.showView('view-stop-lobby');
+    });
+
+    // ── Iniciar sala (Host) ──
+    document.getElementById('btn-start-stop-lobby').addEventListener('click', () => {
+      this.network.send('GO_TO_PROFILE', {});
+      this._resetProfileUI();
+      this.showView('view-stop-profile');
     });
 
     // ── Botón STOP dentro del juego ──
@@ -228,6 +257,10 @@ class StopGame {
     document.getElementById('stop-lobby-host').classList.add('hidden');
     document.getElementById('stop-lobby-guest').classList.remove('hidden');
     document.getElementById('stop-join-error').classList.add('hidden');
+    
+    // Restaurar form de invitado
+    document.getElementById('stop-lobby-guest-form').classList.remove('hidden');
+    document.getElementById('stop-lobby-guest-waiting').classList.add('hidden');
 
     this.network = new PeerNetwork(false, this._handleNetwork.bind(this));
     this.peerReady = this.network.init();
@@ -281,6 +314,8 @@ class StopGame {
         break;
       case 'CONNECTED':
         document.getElementById('stop-join-error').classList.add('hidden');
+        document.getElementById('stop-lobby-guest-form').classList.add('hidden');
+        document.getElementById('stop-lobby-guest-waiting').classList.remove('hidden');
         break;
       case 'GO_TO_PROFILE':
         this._resetProfileUI();
@@ -391,8 +426,8 @@ class StopGame {
   _resetProfileUI() {
     document.getElementById('btn-stop-ready').classList.remove('hidden');
     document.getElementById('stop-ready-status').classList.add('hidden');
+    document.getElementById('btn-stop-ready').disabled = document.getElementById('stop-player-name-input').value.trim().length === 0;
     this.myProfile.isReady = false;
-    this.opponentProfile.isReady = false;
   }
 
   _checkAllReady() {

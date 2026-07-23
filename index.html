@@ -365,10 +365,16 @@
         </div>
 
         <div id="stop-lobby-guest" class="hidden">
-          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:1rem;">Ingresa el código de la sala:</p>
-          <input type="text" id="stop-room-code-input" class="input-large" placeholder="EJ: A1B2" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" />
-          <button id="btn-stop-join" class="btn btn-primary">Unirse</button>
-          <p id="stop-join-error" class="error-text hidden">Código inválido o sala no encontrada.</p>
+          <div id="stop-lobby-guest-form">
+            <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:1rem;">Ingresa el código de la sala:</p>
+            <input type="text" id="stop-room-code-input" class="input-large" placeholder="EJ: A1B2" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+            <button id="btn-stop-join" class="btn btn-primary">Unirse</button>
+            <p id="stop-join-error" class="error-text hidden">Código inválido o sala no encontrada.</p>
+          </div>
+          <div id="stop-lobby-guest-waiting" class="hidden" style="margin-top: 1rem;">
+            <p class="loading-text" style="color:var(--success);font-weight:bold;margin-bottom:0.5rem;">¡Conectado exitosamente!</p>
+            <p class="loading-text">Esperando a que el creador inicie la sala<span class="dots">...</span></p>
+          </div>
         </div>
 
         <button class="btn btn-text" id="btn-stop-lobby-back">← Volver</button>
@@ -383,7 +389,7 @@
           <button id="btn-stop-change-emoji" class="btn btn-small">Cambiar avatar</button>
         </div>
         <input type="text" id="stop-player-name-input" class="input-large" placeholder="Tu apodo" maxlength="10" />
-        <button id="btn-stop-ready" class="btn btn-primary">¡Estoy Listo! 🎯</button>
+        <button id="btn-stop-ready" class="btn btn-primary" disabled>¡Estoy Listo! 🎯</button>
         
         <div id="stop-ready-players-container" class="hidden" style="margin-top: 20px; width: 100%; text-align: left;">
            <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--text-main); text-align: center;">Jugadores:</h3>
