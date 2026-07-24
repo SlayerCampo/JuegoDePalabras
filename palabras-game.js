@@ -581,7 +581,12 @@ class WordGame {
         break;
       case "SUBMIT_WORD":
         if (this.isHost) {
-          this.hostValidateWord(msg.payload);
+          this.hostValidateWord(msg.payload, false);
+        }
+        break;
+      case "SUBMIT_WORD_MIRACLE":
+        if (this.isHost && !this.hostForcedBoom) {
+          this.hostValidateWord(msg.payload, true);
         }
         break;
       case "WORD_REJECTED":
@@ -600,6 +605,7 @@ class WordGame {
         this.handleBoom(msg.payload);
         break;
       case "GAME_OVER":
+        if (msg.payload.eliminationOrder) this.eliminationOrder = msg.payload.eliminationOrder;
         this.showGameOver(msg.payload.winner);
         break;
     }
@@ -710,6 +716,7 @@ class WordGame {
     this.gameActive = true;
     this.usedWords.clear();
     this.wordHistory = [];
+    this.eliminationOrder = [];
     
     // Resetear vidas para todos los jugadores
     Object.keys(this.players).forEach(id => {
@@ -873,14 +880,40 @@ class WordGame {
     }
 
     this.boomTriggered = false;
+    this.localBoomTriggered = false;
+    this.hostForcedBoom = false;
     
     const updateTimerDisplay = () => {
       const remaining = Math.max(0, (endTime - Date.now()) / 1000);
       timeRemaining.innerText = `${formatSeconds(remaining)}s`;
       
-      // SOLO EL HOST activa el BOOM para asegurar sincronía
-      if (this.isHost && remaining <= 0 && this.gameActive && !this.boomTriggered) {
-         this.boomTriggered = true;
+      // Auto-submit local cuando se acaba el tiempo exacto (Salvada de Milagro)
+      if (remaining <= 0 && this.amIActive() && this.gameActive && !this.localBoomTriggered) {
+         this.localBoomTriggered = true;
+         
+         const inputEl = document.getElementById("word-input");
+         const fullWord = limpiarTexto(inputEl.value);
+         
+         if (fullWord.length > 0) {
+            inputEl.disabled = true;
+            document.getElementById("btn-verify").disabled = true;
+            if (this.isHost) {
+               this.hostValidateWord(fullWord, true);
+            } else {
+               this.network.send("SUBMIT_WORD_MIRACLE", fullWord);
+            }
+         } else {
+            if (this.isHost && !this.hostForcedBoom) {
+               this.hostForcedBoom = true;
+               if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+               this.triggerBoom();
+            }
+         }
+      }
+      
+      // SOLO EL HOST activa el BOOM por la fuerza (1s de gracia para milagros)
+      if (this.isHost && remaining <= -1 && this.gameActive && !this.hostForcedBoom) {
+         this.hostForcedBoom = true;
          if (this.timer) { clearTimeout(this.timer); this.timer = null; }
          this.triggerBoom();
       }
@@ -968,10 +1001,21 @@ class WordGame {
     }
   }
 
-  hostValidateWord(fullWord) {
-    if (this.usedWords.has(fullWord)) {
-      return; 
+  hostValidateWord(fullWord, isMiracle = false) {
+    const letraRequerida = limpiarTexto(this.currentLetter);
+    const isValid = fullWord.startsWith(letraRequerida) && 
+                    (this.dictionary.size === 0 || this.dictionary.has(fullWord)) && 
+                    !this.usedWords.has(fullWord);
+
+    if (!isValid) {
+       if (isMiracle && !this.hostForcedBoom) {
+          this.hostForcedBoom = true;
+          this.triggerBoom();
+       }
+       return; 
     }
+
+    this.hostForcedBoom = true;
 
     clearTimeout(this.timer);
     this.timer = null;
@@ -994,14 +1038,19 @@ class WordGame {
     }
     historyEntry.words[this.activePlayer] = fullWord;
 
-    // Cambiar turno
-    const nextPlayerIndex = (this.activePlayerIndex + 1) % this.playerOrder.length;
+    // Cambiar turno (saltando muertos)
+    let nextPlayerIndex = (this.activePlayerIndex + 1) % this.playerOrder.length;
+    while (this.players[this.playerOrder[nextPlayerIndex]].lives <= 0) {
+       nextPlayerIndex = (nextPlayerIndex + 1) % this.playerOrder.length;
+       if (nextPlayerIndex === this.activePlayerIndex) break;
+    }
+    
     const nextPlayer = this.playerOrder[nextPlayerIndex];
     const nextTurnCount = this.turnCount + 1;
     
-    // Cálculo de rondas (2 turnos por jugador = 1 ronda)
-    const playersCount = this.playerOrder.length;
-    const turnsPerRound = playersCount * 2;
+    // Cálculo de rondas (2 turnos por jugador vivo = 1 ronda)
+    const alivePlayersCount = Object.values(this.players).filter(p => p.lives > 0).length || 1;
+    const turnsPerRound = alivePlayersCount; // Adaptar la ronda a los vivos
     const nextRound = Math.floor((nextTurnCount - 1) / turnsPerRound) + 1;
 
     const nextRoundDuration = getRoundDuration(this.gameMode, nextRound);
@@ -1017,7 +1066,6 @@ class WordGame {
       history: this.wordHistory,
       mode: this.gameMode,
       letterMode: this.letterMode,
-      // Cambio de letra
       currentLetter:
         this.letterMode === "por-turno"
           ? getRandomLetter(this.currentLetter)
@@ -1025,7 +1073,9 @@ class WordGame {
             ? getRandomLetter(this.currentLetter)
             : this.currentLetter,
       turnStartTime: turnStartTime,
-      turnEndTime: turnEndTime
+      turnEndTime: turnEndTime,
+      isMiracle: isMiracle,
+      eliminationOrder: this.eliminationOrder
     };
 
     // Broadcast a TODOS los clientes
@@ -1041,12 +1091,39 @@ class WordGame {
     }
     this.usedWords.add(nextState.lastWord);
     this.wordHistory = nextState.history;
-    document.body.classList.add("flash-green");
+    
+    if (nextState.isMiracle) {
+      document.body.classList.add("flash-yellow");
+      
+      const miracleAlert = document.createElement("div");
+      miracleAlert.id = "miracle-alert";
+      miracleAlert.innerHTML = "¡SALVADA DE MILAGRO! ⏳";
+      miracleAlert.style.position = "fixed";
+      miracleAlert.style.top = "20%";
+      miracleAlert.style.left = "50%";
+      miracleAlert.style.transform = "translate(-50%, -50%)";
+      miracleAlert.style.background = "linear-gradient(135deg, #fbbf24, #d97706)";
+      miracleAlert.style.color = "white";
+      miracleAlert.style.padding = "10px 20px";
+      miracleAlert.style.borderRadius = "20px";
+      miracleAlert.style.fontWeight = "bold";
+      miracleAlert.style.fontSize = "1.5rem";
+      miracleAlert.style.zIndex = "9999";
+      miracleAlert.style.boxShadow = "0 10px 25px rgba(251, 191, 36, 0.6)";
+      miracleAlert.style.animation = "popIn 0.5s ease-out";
+      document.body.appendChild(miracleAlert);
+      
+      setTimeout(() => { if (document.getElementById("miracle-alert")) document.getElementById("miracle-alert").remove(); }, 2500);
+    } else {
+      document.body.classList.add("flash-green");
+    }
+
     this.showTurnChangeOverlay(nextState);
     
     const delay = Math.max(0, nextState.turnStartTime - Date.now());
     setTimeout(() => {
       document.body.classList.remove("flash-green");
+      document.body.classList.remove("flash-yellow");
       this.applyNextState(nextState);
     }, delay);
   }
@@ -1100,6 +1177,10 @@ class WordGame {
     if (!this.players[loserId]) return; 
     
     this.players[loserId].lives--;
+    if (this.players[loserId].lives === 0) {
+      if (!this.eliminationOrder) this.eliminationOrder = [];
+      this.eliminationOrder.unshift(loserId);
+    }
     this.updateHeaderUI();
 
     // Guardar BOOM en el historial
@@ -1112,13 +1193,20 @@ class WordGame {
     historyEntry.words[loserId] = "💥 BOOM";
 
     const nextTurnCount = this.turnCount + 1;
-    const playersCount = this.playerOrder.length;
-    const turnsPerRound = playersCount * 2;
+    
+    // Cambiar turno (saltando muertos)
+    let nextPlayerIndex = (this.activePlayerIndex + 1) % this.playerOrder.length;
+    while (this.players[this.playerOrder[nextPlayerIndex]].lives <= 0) {
+       nextPlayerIndex = (nextPlayerIndex + 1) % this.playerOrder.length;
+       if (nextPlayerIndex === this.activePlayerIndex) break;
+    }
+    
+    const alivePlayersCount = Object.values(this.players).filter(p => p.lives > 0).length || 1;
+    const turnsPerRound = alivePlayersCount;
     const nextRound = Math.floor((nextTurnCount - 1) / turnsPerRound) + 1;
-    const nextPlayerIndex = (this.activePlayerIndex + 1) % this.playerOrder.length;
 
     const nextRoundDuration = getRoundDuration(this.gameMode, nextRound);
-    const turnStartTime = Date.now() + 2000;
+    const turnStartTime = Date.now() + 4500; // 1.5s shake + 3s overlay
     const turnEndTime = turnStartTime + nextRoundDuration * 1000;
 
     const nextState = {
@@ -1138,7 +1226,8 @@ class WordGame {
             ? getRandomLetter(this.currentLetter)
             : this.currentLetter,
       turnStartTime: turnStartTime,
-      turnEndTime: turnEndTime
+      turnEndTime: turnEndTime,
+      eliminationOrder: this.eliminationOrder
     };
 
     this.network.send("BOOM", nextState);
@@ -1153,6 +1242,7 @@ class WordGame {
     if (nextState.loser && this.players[nextState.loser]) {
       this.players[nextState.loser].lives = nextState.livesRemaining;
     }
+    if (nextState.eliminationOrder) this.eliminationOrder = nextState.eliminationOrder;
     this.wordHistory = nextState.history;
     this.updateHeaderUI();
 
@@ -1160,30 +1250,38 @@ class WordGame {
     overlay.classList.remove("hidden");
     document.body.classList.add("shake");
 
-    const delay = Math.max(0, nextState.turnStartTime - Date.now());
+    // Quitar shake a los 1.5s
     setTimeout(() => {
       overlay.classList.add("hidden");
       document.body.classList.remove("shake");
+      
+      const remainingDelay = Math.max(0, nextState.turnStartTime - Date.now());
+      if (remainingDelay > 0) {
+        const alivePlayers = Object.values(this.players).filter(p => p.lives > 0);
+        if (alivePlayers.length > 1) {
+           this.showTurnChangeOverlay(nextState); // Muestra por 3s
+        }
+      }
+    }, 1500);
+
+    const delay = Math.max(0, nextState.turnStartTime - Date.now());
+    setTimeout(() => {
       this.checkGameOverOrContinue(nextState);
     }, delay);
   }
 
   checkGameOverOrContinue(nextState) {
-    const deadPlayer = Object.values(this.players).find(p => p.lives <= 0);
-    const maxRoundsReached = nextState.round > this.roundsCount;
-
-    if (deadPlayer || maxRoundsReached) {
-      // Encuentra el ganador (el de más vidas)
-      let winner = null;
-      let maxLives = -1;
-      Object.values(this.players).forEach(p => {
-         if (p.lives > maxLives) {
-            maxLives = p.lives;
-            winner = p.id;
-         }
-      });
+    const alivePlayers = Object.values(this.players).filter(p => p.lives > 0);
+    
+    if (alivePlayers.length <= 1) {
+      // Find the winner
+      let winner = alivePlayers.length === 1 ? alivePlayers[0].id : null;
+      if (!winner && this.eliminationOrder && this.eliminationOrder.length > 0) {
+         winner = this.eliminationOrder[0];
+      }
+      
       if (this.isHost) {
-        this.network.send("GAME_OVER", { winner, history: this.wordHistory });
+        this.network.send("GAME_OVER", { winner, history: this.wordHistory, eliminationOrder: this.eliminationOrder });
       }
       this.showGameOver(winner);
     } else {
@@ -1217,17 +1315,68 @@ class WordGame {
       this.timerDisplayInterval = null;
     }
 
-    const winnerProfile = this.players[winner] || { name: "Desconocido", emoji: "🏆" };
+    const podium = [winner];
+    if (this.eliminationOrder) {
+       this.eliminationOrder.forEach(id => {
+          if (id !== winner) podium.push(id);
+       });
+    }
+    Object.keys(this.players).forEach(id => {
+       if (!podium.includes(id)) podium.push(id);
+    });
+
+    const winnerProfile = this.players[winner] || { name: "Nadie", emoji: "🏆" };
 
     document.getElementById("winner-emoji").innerText = winnerProfile.emoji;
     document.getElementById("winner-name").innerText = winnerProfile.name;
 
-    // Construir historial
     const historyContainer = document.getElementById("word-history");
-    historyContainer.innerHTML = "";
+    historyContainer.innerHTML = `<h3 style="text-align:center; color:white; margin-bottom: 1rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">🏅 Ranking Final</h3>`;
+    
+    const podiumEl = document.createElement("div");
+    podiumEl.style.display = "flex";
+    podiumEl.style.flexDirection = "column";
+    podiumEl.style.gap = "10px";
+    podiumEl.style.marginBottom = "2rem";
+
+    const medals = ["🥇", "🥈", "🥉", "🏅", "🏅"];
+    
+    podium.forEach((playerId, index) => {
+       const p = this.players[playerId];
+       if (!p) return;
+       const card = document.createElement("div");
+       card.style.background = index === 0 ? "linear-gradient(135deg, #fbbf24, #d97706)" : "var(--bg-card)";
+       card.style.padding = "10px 15px";
+       card.style.borderRadius = "12px";
+       card.style.display = "flex";
+       card.style.alignItems = "center";
+       card.style.gap = "15px";
+       card.style.border = index === 0 ? "2px solid #fef3c7" : "1px solid var(--border)";
+       card.style.boxShadow = index === 0 ? "0 4px 15px rgba(251, 191, 36, 0.4)" : "none";
+       
+       const medal = p.lives <= 0 ? "💀" : (medals[index] || "💀");
+       
+       card.innerHTML = `
+         <span style="font-size: 1.5rem; width: 30px; text-align: center;">${medal}</span>
+         <span style="font-size: 2rem;">${p.emoji}</span>
+         <div style="flex: 1;">
+            <div style="font-weight: bold; font-size: 1.1rem; color: ${index === 0 ? 'white' : 'var(--text)'};">${p.name}</div>
+            <div style="font-size: 0.85rem; color: ${index === 0 ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)'};">${p.lives} vidas</div>
+         </div>
+       `;
+       podiumEl.appendChild(card);
+    });
+    
+    historyContainer.appendChild(podiumEl);
+
+    // Build Word History below podium
+    const historyTitle = document.createElement("h3");
+    historyTitle.style.cssText = "text-align:center; color:white; margin: 1rem 0; text-shadow: 0 2px 4px rgba(0,0,0,0.5);";
+    historyTitle.innerText = "📚 Historial de Palabras";
+    historyContainer.appendChild(historyTitle);
 
     if (this.wordHistory.length === 0) {
-      historyContainer.innerHTML = `<p style="text-align:center;color:var(--text-muted);font-size:0.9rem;font-family:var(--font-body);">No hay palabras registradas.</p>`;
+      historyContainer.insertAdjacentHTML("beforeend", `<p style="text-align:center;color:var(--text-muted);font-size:0.9rem;font-family:var(--font-body);">No hay palabras registradas.</p>`);
     } else {
       this.wordHistory.forEach((round, index) => {
         const item = document.createElement("div");
