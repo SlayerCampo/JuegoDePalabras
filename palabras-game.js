@@ -101,6 +101,7 @@ class WordGame {
     this.mechaAnimation = null;
     this.timeLeft = 0;
     this.wordHistory = []; // { letter, hostWord, guestWord, round }
+    this.myProfile = { name: '', emoji: EMOJIS[0], isReady: false };
 
     this.initDOM();
     this.loadDictionary();
@@ -687,8 +688,13 @@ class WordGame {
     this.gameActive = true;
     this.usedWords.clear();
     this.wordHistory = [];
-    this.myProfile.lives = 3;
-    this.opponentProfile.lives = 3;
+    
+    // Resetear vidas para todos los jugadores
+    Object.keys(this.players).forEach(id => {
+       if (this.players[id]) {
+          this.players[id].lives = 3;
+       }
+    });
     if (this.timerDisplayInterval) {
       clearInterval(this.timerDisplayInterval);
       this.timerDisplayInterval = null;
@@ -730,34 +736,48 @@ class WordGame {
   updateHeaderUI() {
     const myId = this.isHost ? "host" : (this.network ? this.network.myId : "guest");
     const activePlayerId = this.activePlayer;
+    const header = document.getElementById("dynamic-game-header");
+    header.innerHTML = "";
     
-    const p1Container = document.getElementById("p1-info");
-    const p2Container = document.getElementById("p2-info");
-    const vsBadge = document.querySelector(".vs-badge");
-    
-    // Configurar p1 (siempre el jugador activo)
     const activeP = this.players[activePlayerId];
-    if (activeP) {
-      p1Container.querySelector(".name").innerText = activeP.name;
-      p1Container.querySelector(".emoji").innerText = activeP.emoji;
-      document.getElementById("p1-lives").innerText = "❤️".repeat(activeP.lives) + "🖤".repeat(3 - activeP.lives);
-    }
+    const myP = this.players[myId];
     
-    // Si yo soy el activo, solo me veo a mi
-    if (myId === activePlayerId) {
-       p2Container.style.display = "none";
-       vsBadge.style.display = "none";
-    } else {
-       // Si yo no soy el activo, me veo a mi en p2
-       p2Container.style.display = "flex";
-       vsBadge.style.display = "block";
-       
-       const myP = this.players[myId];
-       if (myP) {
-          p2Container.querySelector(".name").innerText = myP.name;
-          p2Container.querySelector(".emoji").innerText = myP.emoji;
-          document.getElementById("p2-lives").innerText = "❤️".repeat(myP.lives) + "🖤".repeat(3 - myP.lives);
-       }
+    if (myId === activePlayerId && myP) {
+      // Yo soy el activo
+      header.innerHTML = `
+        <div class="player-info p1-info" style="margin: 0 auto;">
+          <span class="emoji">${myP.emoji}</span>
+          <div>
+            <span class="name">${myP.name} (Tú)</span>
+            <span class="lives" id="p1-lives">
+              ${"❤️".repeat(myP.lives)}${"🖤".repeat(3 - myP.lives)}
+            </span>
+          </div>
+        </div>
+      `;
+    } else if (activeP && myP) {
+      // Otro es el activo
+      header.innerHTML = `
+        <div class="player-info p1-info">
+          <span class="emoji">${activeP.emoji}</span>
+          <div>
+            <span class="name">${activeP.name}</span>
+            <span class="lives" id="p1-lives">
+              ${"❤️".repeat(activeP.lives)}${"🖤".repeat(3 - activeP.lives)}
+            </span>
+          </div>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="player-info p2-info">
+          <span class="emoji">${myP.emoji}</span>
+          <div>
+            <span class="name">${myP.name} (Tú)</span>
+            <span class="lives" id="p2-lives">
+              ${"❤️".repeat(myP.lives)}${"🖤".repeat(3 - myP.lives)}
+            </span>
+          </div>
+        </div>
+      `;
     }
   }
 

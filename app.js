@@ -7,8 +7,18 @@ document.addEventListener("DOMContentLoaded", () => {
   initDarkMode();
 
   // Inicializar Juegos
-  window.wordGame = new WordGame(); // Palabras Bomba
-  window.stopGame = new StopGame(); // Stop Bomba
+  try {
+    window.wordGame = new WordGame(); // Palabras Bomba
+  } catch (e) {
+    console.error("Error in WordGame:", e);
+    alert("Error WordGame: " + e.message);
+  }
+
+  try {
+    window.stopGame = new StopGame(); // Stop Bomba
+  } catch (e) {
+    console.error("Error in StopGame:", e);
+  }
 
   // Navegación Menú Principal
   const btnGoPalabras = document.getElementById("btn-go-palabras");
@@ -34,4 +44,10 @@ document.addEventListener("DOMContentLoaded", () => {
       showAppView("home");
     });
   });
+
+  // Auto-join por URL (para STOP)
+  const stopRoom = new URLSearchParams(window.location.search).get('stoproom');
+  if (stopRoom && window.stopGame) {
+    window.stopGame._setupGuest(stopRoom.trim().toUpperCase());
+  }
 });

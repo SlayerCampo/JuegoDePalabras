@@ -1175,16 +1175,4 @@ class StopGame {
   }
 }
 
-// ── Inicializar STOP junto con el juego principal ──
-window.addEventListener('DOMContentLoaded', () => {
-  // Delay para que app.js termine su init primero
-  setTimeout(() => {
-    window._stopGame = new StopGame();
 
-    // Auto-join por URL (para STOP)
-    const stopRoom = new URLSearchParams(window.location.search).get('stoproom');
-    if (stopRoom) {
-      window._stopGame._setupGuest(stopRoom.trim().toUpperCase());
-    }
-  }, 150);
-});
