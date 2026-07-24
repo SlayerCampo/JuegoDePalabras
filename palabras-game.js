@@ -725,7 +725,7 @@ class WordGame {
 
   // --- Lógica de Juego ---
   amIActive() {
-    const myId = this.isHost ? "host" : this.network.myId;
+    const myId = this.isHost ? "host" : (this.network ? this.network.myId : "guest");
     return this.activePlayer === myId;
   }
 
@@ -800,6 +800,8 @@ class WordGame {
     document.getElementById("turn-overlay").classList.add("hidden");
 
     if (this.amIActive()) {
+      input.disabled = false;
+      document.getElementById("btn-submit-word").disabled = false;
       turnHint.innerText = `Escribe una palabra con "${this.currentLetter}"`;
       actionZone.classList.remove("hidden");
       spectatorZone.classList.add("hidden");
@@ -929,6 +931,7 @@ class WordGame {
     // ¡Acierto!
     errorEl.classList.add("hidden");
     inputEl.disabled = true; // Bloquear input inmediatamente
+    document.getElementById("btn-submit-word").disabled = true; // Bloquear botón también
     clearTimeout(this.timer);
     this.timer = null;
     if (this.timerDisplayInterval) {
@@ -1042,7 +1045,9 @@ class WordGame {
       clearInterval(this.timerDisplayInterval);
       this.timerDisplayInterval = null;
     }
-    const myId = this.isHost ? "host" : this.network.myId;
+    const myId = this.isHost ? "host" : (this.network ? this.network.myId : "guest");
+    if (!this.players[myId]) return; // Guard clause
+    
     this.players[myId].lives--;
     this.updateHeaderUI();
 

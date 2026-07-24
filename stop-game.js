@@ -1,4 +1,4 @@
-﻿// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  STOP BOMBA â€” LÃ³gica completa del juego
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
@@ -1131,13 +1131,11 @@ class StopGame {
     let rows = '';
     sortedPlayers.forEach((p, idx) => {
        const isWinner = idx === 0;
-       const position = idx === 0 ? '\uD83E\uDD47' : idx === 1 ? '\uD83E\uDD48' : idx === 2 ? '\uD83E\uDD49' : # + (idx + 1);
-       rows += <tr style="${isWinner ? 'background: rgba(255,215,0,0.2); font-weight: bold; font-size: 1.1em;' : ''}">
+       const position = idx === 0 ? '\uD83E\uDD47' : idx === 1 ? '\uD83E\uDD48' : idx === 2 ? '\uD83E\uDD49' : '#' + (idx + 1);
+       rows += `<tr style="${isWinner ? 'background: rgba(255,215,0,0.2); font-weight: bold; font-size: 1.1em;' : ''}">
          <td>${position}</td>
          <td>${p.emoji} ${p.name}</td>
          <td>${p.score}</td>
-       </tr>;
-    });
        </tr>`;
     });
 
