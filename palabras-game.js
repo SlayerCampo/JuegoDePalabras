@@ -928,6 +928,7 @@ class WordGame {
 
     // ¡Acierto!
     errorEl.classList.add("hidden");
+    inputEl.disabled = true; // Bloquear input inmediatamente
     clearTimeout(this.timer);
     this.timer = null;
     if (this.timerDisplayInterval) {

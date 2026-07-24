@@ -1,23 +1,23 @@
-// ═══════════════════════════════════════════════
-//  STOP BOMBA — Lógica completa del juego
-// ═══════════════════════════════════════════════
+﻿// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  STOP BOMBA â€” LÃ³gica completa del juego
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const STOP_CATEGORIES = {
-  nombres:  { label: 'Nombres',   emoji: '👤' },
-  apellidos:{ label: 'Apellidos', emoji: '🏷️' },
-  objetos:  { label: 'Objetos',   emoji: '📦' },
-  animales: { label: 'Animales',  emoji: '🐾' },
-  colores:  { label: 'Colores',   emoji: '🎨' },
-  ciudad:   { label: 'Ciudad',    emoji: '🏙️' },
-  pais:     { label: 'País',      emoji: '🌍' },
-  fruta:    { label: 'Fruta',     emoji: '🍎' },
+  nombres:  { label: 'Nombres',   emoji: 'ðŸ‘¤' },
+  apellidos:{ label: 'Apellidos', emoji: 'ðŸ·ï¸' },
+  objetos:  { label: 'Objetos',   emoji: 'ðŸ“¦' },
+  animales: { label: 'Animales',  emoji: 'ðŸ¾' },
+  colores:  { label: 'Colores',   emoji: 'ðŸŽ¨' },
+  ciudad:   { label: 'Ciudad',    emoji: 'ðŸ™ï¸' },
+  pais:     { label: 'PaÃ­s',      emoji: 'ðŸŒ' },
+  fruta:    { label: 'Fruta',     emoji: 'ðŸŽ' },
 };
 
 const STOP_LETTERS = 'ABCDEFGHIJLMNOPRSTUVZ'.split('');
 const TOTAL_ROUNDS = 5;
-const STOP_EMOJIS = ["😎", "🤖", "👽", "👻", "🤡", "🦊", "🐯", "🐶", "🐱", "🐵"];
+const STOP_EMOJIS = ["ðŸ˜Ž", "ðŸ¤–", "ðŸ‘½", "ðŸ‘»", "ðŸ¤¡", "ðŸ¦Š", "ðŸ¯", "ðŸ¶", "ðŸ±", "ðŸµ"];
 
-// ── Clase principal StopGame ──────────────────────
+// â”€â”€ Clase principal StopGame â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class StopGame {
   constructor() {
     this.network        = null;
@@ -25,7 +25,7 @@ class StopGame {
     this.joiningRoom    = false;
     this.peerReady      = null;
 
-    // Configuración de partida
+    // ConfiguraciÃ³n de partida
     this.selectedCats   = [];   // ['nombres','animales',...]
     this.currentLetter  = 'A';
     this.currentRound   = 1;
@@ -33,7 +33,7 @@ class StopGame {
 
     // Estado N-jugadores
     this.players = {
-      host: { name: 'Host', emoji: '😎', isReady: false, id: 'host', score: 0 }
+      host: { name: 'Host', emoji: 'ðŸ˜Ž', isReady: false, id: 'host', score: 0 }
     };
 
     // Respuestas y Votos
@@ -41,14 +41,14 @@ class StopGame {
     this.allVotes       = {};   // { round: { cat: { peerId: { voterId: 'valid'|'invalid'|'repeated' } } } }
 
     // Estados de UI
-    this.reviewDone     = false; // si ya terminé de votar en esta ronda
+    this.reviewDone     = false; // si ya terminÃ© de votar en esta ronda
     this.stopTriggeredBy = null; // id de quien dio STOP (o 'time')
-    this.myProfile      = { name: '', emoji: '😎', isReady: false };
+    this.myProfile      = { name: '', emoji: 'ðŸ˜Ž', isReady: false };
 
     this.initDOM();
   }
 
-  // ── Init DOM ──────────────────────────────────
+  // â”€â”€ Init DOM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   initDOM() {
     // Todas las vistas de la app (para mostrar/ocultar)
     this.allViews = [
@@ -59,12 +59,12 @@ class StopGame {
       'view-stop-gameover'
     ];
 
-    // ── Home: ir a config STOP ──
+    // â”€â”€ Home: ir a config STOP â”€â”€
     document.getElementById('btn-go-stop').addEventListener('click', () => {
       this.showView('view-stop-config');
     });
 
-    // ── Config STOP ──
+    // â”€â”€ Config STOP â”€â”€
     document.querySelectorAll('.stop-cat-toggle').forEach(btn => {
       btn.addEventListener('click', () => btn.classList.toggle('active'));
     });
@@ -73,7 +73,7 @@ class StopGame {
       this.showView('view-home');
     });
 
-    // ── Tiempo Config (Eliminado, fijo a 5 mins) ──
+    // â”€â”€ Tiempo Config (Eliminado, fijo a 5 mins) â”€â”€
     
     document.getElementById('btn-stop-host').addEventListener('click', () => {
       const cats = this._getSelectedCats();
@@ -97,14 +97,14 @@ class StopGame {
       this._setupGuest();
     });
 
-    // ── Lobby STOP ──
+    // â”€â”€ Lobby STOP â”€â”€
     document.getElementById('btn-stop-join').addEventListener('click', () => this._joinRoom());
     document.getElementById('btn-stop-lobby-back').addEventListener('click', () => {
       this._disconnectNetwork();
       this.showView('view-stop-config');
     });
 
-    // ── Perfil STOP ──
+    // â”€â”€ Perfil STOP â”€â”€
     let stopEmojiIdx = 0;
     document.getElementById('btn-stop-change-emoji').addEventListener('click', () => {
       stopEmojiIdx = (stopEmojiIdx + 1) % STOP_EMOJIS.length;
@@ -145,7 +145,7 @@ class StopGame {
       this.showView('view-stop-lobby');
     });
 
-    // ── Iniciar sala (Host) ──
+    // â”€â”€ Iniciar sala (Host) â”€â”€
     document.getElementById('btn-start-stop-lobby').addEventListener('click', () => {
       this.network.send('GO_TO_PROFILE', {});
       this._resetProfileUI();
@@ -154,24 +154,20 @@ class StopGame {
       this._broadcastLobbyState();
     });
 
-    // ── Botón STOP dentro del juego ──
+    // â”€â”€ BotÃ³n STOP dentro del juego â”€â”€
     document.getElementById('btn-stop-action').addEventListener('click', () => {
-      this._triggerStop('me');
+      const myId = this.isHost ? "host" : (this.network ? this.network.myId : "guest");
+      this._triggerStop(myId);
     });
 
-    // ── Botón salir del juego STOP ──
+    // â”€â”€ BotÃ³n salir del juego STOP â”€â”€
     document.getElementById('btn-stop-exit').addEventListener('click', () => {
-      if (confirm('¿Salir de la partida? Se perderá la conexión.')) {
+      if (confirm('Â¿Salir de la partida? Se perderÃ¡ la conexiÃ³n.')) {
         this._goHome();
       }
     });
 
-    // ── Revisión: siguiente ronda ──
-    document.getElementById('btn-stop-next-round').addEventListener('click', () => {
-      this._onNextRoundClick();
-    });
-
-    // ── Game Over STOP ──
+    // â”€â”€ Game Over STOP â”€â”€
     document.getElementById('btn-stop-replay').addEventListener('click', () => {
       this._disconnectNetwork();
       this._resetState();
@@ -182,7 +178,7 @@ class StopGame {
     });
   }
 
-  // ── Utilidades de UI ─────────────────────────
+  // â”€â”€ Utilidades de UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   showView(viewId) {
     this.allViews.forEach(id => {
       const el = document.getElementById(id);
@@ -206,7 +202,7 @@ class StopGame {
     return STOP_LETTERS[Math.floor(Math.random() * STOP_LETTERS.length)];
   }
 
-  // ── Red ──────────────────────────────────────
+  // â”€â”€ Red â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _disconnectNetwork() {
     if (this.network) {
       this.network.disconnect();
@@ -290,7 +286,7 @@ class StopGame {
     }
   }
 
-  // ── Mensajes de red ──────────────────────────
+  // â”€â”€ Mensajes de red â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _handleNetwork(msg) {
     switch (msg.type) {
       case 'CLIENT_CONNECTED':
@@ -318,7 +314,7 @@ class StopGame {
         document.getElementById('stop-lobby-guest-form').classList.add('hidden');
         document.getElementById('stop-lobby-guest-waiting').classList.remove('hidden');
         document.getElementById('stop-lobby-guest-waiting').innerHTML = `
-            <p class="loading-text" style="color:var(--success);font-weight:bold;margin-bottom:0.5rem;">¡Conectado exitosamente!</p>
+            <p class="loading-text" style="color:var(--success);font-weight:bold;margin-bottom:0.5rem;">Â¡Conectado exitosamente!</p>
             <p class="loading-text">Esperando a que el creador inicie la sala<span class="dots">...</span></p>
         `;
         break;
@@ -439,7 +435,7 @@ class StopGame {
       if (p.isReady) {
         el.style.opacity = "0.5";
         el.style.border = "1px solid var(--success)";
-        el.innerHTML = `<span style="font-size:1.2rem;">${p.emoji}</span> <span style="flex:1;">${p.name}</span> <span style="color:var(--success);">✔ Listo</span>`;
+        el.innerHTML = `<span style="font-size:1.2rem;">${p.emoji}</span> <span style="flex:1;">${p.name}</span> <span style="color:var(--success);">âœ” Listo</span>`;
       } else {
         el.style.border = "1px solid var(--border)";
         el.innerHTML = `<span style="font-size:1.2rem;">${p.emoji}</span> <span style="flex:1;">${p.name}</span> <span style="color:var(--text-muted);">Esperando...</span>`;
@@ -448,7 +444,7 @@ class StopGame {
     });
   }
 
-  // ── Flujo preparación ────────────────────────
+  // â”€â”€ Flujo preparaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _resetProfileUI() {
     document.getElementById('btn-stop-ready').classList.remove('hidden');
     document.getElementById('stop-ready-status').classList.add('hidden');
@@ -477,7 +473,7 @@ class StopGame {
     }
   }
 
-  // ── Inicio de juego ──────────────────────────
+  // â”€â”€ Inicio de juego â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _startGame(payload) {
     if (payload.categories) this.selectedCats = payload.categories;
     if (payload.players) this.players = payload.players;
@@ -505,7 +501,7 @@ class StopGame {
     this._showStopCountdown();
   }
 
-  // ── Cuenta regresiva STOP ────────────────────
+  // â”€â”€ Cuenta regresiva STOP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _showStopCountdown() {
     this.showView('view-stop-countdown');
     const countEl   = document.getElementById('stop-big-countdown');
@@ -515,7 +511,7 @@ class StopGame {
 
     revealDiv.classList.add('hidden');
     countEl.style.display = 'block';
-    label.innerText = '¡La letra se revela en...';
+    label.innerText = 'Â¡La letra se revela en...';
 
     let count = 5;
     countEl.innerText = count;
@@ -534,11 +530,11 @@ class StopGame {
         clearInterval(iv);
         // Revelar letra
         countEl.style.display = 'none';
-        label.innerText = '¡Esta es la letra! 🎉';
+        label.innerText = 'Â¡Esta es la letra! ðŸŽ‰';
         revealLetter.innerText = this.currentLetter;
         revealDiv.classList.remove('hidden');
 
-        // Ir al juego después de 2.5s
+        // Ir al juego despuÃ©s de 2.5s
         setTimeout(() => {
           this._showStopGame();
         }, 2500);
@@ -546,11 +542,11 @@ class StopGame {
     }, 1000);
   }
 
-  // ── Vista de juego STOP ──────────────────────
+  // â”€â”€ Vista de juego STOP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _showStopGame() {
     this.showView('view-stop-game');
 
-    // Header Dinámico
+    // Header DinÃ¡mico
     const header = document.getElementById('dynamic-stop-game-header');
     header.innerHTML = '';
     
@@ -583,7 +579,7 @@ class StopGame {
     // Ocultar overlay
     document.getElementById('stop-opponent-stop-overlay').classList.add('hidden');
 
-    // Generar inputs por categoría
+    // Generar inputs por categorÃ­a
     const grid = document.getElementById('stop-answers-grid');
     grid.innerHTML = '';
     this.myAnswers = {};
@@ -607,7 +603,7 @@ class StopGame {
           placeholder="${info.label} con ${this.currentLetter}..."
           id="stop-input-${cat}"
         />
-        <span class="stop-answer-done">✅</span>
+        <span class="stop-answer-done">âœ…</span>
       `;
 
       const input = row.querySelector('input');
@@ -668,11 +664,11 @@ class StopGame {
     const allFilled = this.selectedCats.every(cat => (this.myAnswers[cat] || '').trim().length > 0);
     btn.disabled = !allFilled;
     hintEl.innerText = allFilled
-      ? '¡Listo para detener!'
-      : `Faltan ${this.selectedCats.filter(c => !(this.myAnswers[c]||'').trim()).length} categorías`;
+      ? 'Â¡Listo para detener!'
+      : `Faltan ${this.selectedCats.filter(c => !(this.myAnswers[c]||'').trim()).length} categorÃ­as`;
   }
 
-  // ── STOP disparado ───────────────────────────
+  // â”€â”€ STOP disparado â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _triggerStop(by) {
     if (this.stopTriggeredBy) return; // Ya se detuvo
     this.stopTriggeredBy = by;
@@ -690,7 +686,7 @@ class StopGame {
       this._showStopOverlay('time');
     } else {
       // Fue otro jugador.
-      // Si soy Host, debo asegurarme de avisarle a todos los demás invitados.
+      // Si soy Host, debo asegurarme de avisarle a todos los demÃ¡s invitados.
       if (this.isHost) {
         this.network.send('STOP_TRIGGER', { triggeredBy: by });
       }
@@ -723,10 +719,10 @@ class StopGame {
     const msg     = document.getElementById('stop-overlay-msg');
 
     if (by === 'me') {
-      title.innerText = '¡STOP!';
-      msg.innerText   = '¡Detuviste el juego!\nRevisando respuestas...';
+      title.innerText = 'Â¡STOP!';
+      msg.innerText   = 'Â¡Detuviste el juego!\nRevisando respuestas...';
     } else {
-      title.innerText = '¡STOP!';
+      title.innerText = 'Â¡STOP!';
       msg.innerText   = `Tu oponente detuvo el juego.\nTus respuestas han sido enviadas.`;
     }
     overlay.classList.remove('hidden');
@@ -736,11 +732,11 @@ class StopGame {
     document.getElementById('btn-stop-action').disabled = true;
   }
 
-  // Espera a tener todas las respuestas para iniciar revisión (Solo Host)
+  // Espera a tener todas las respuestas para iniciar revisiÃ³n (Solo Host)
   _tryStartReview() {
     if (!this.isHost) return;
     
-    // Validar si ya recibí de todos
+    // Validar si ya recibÃ­ de todos
     if (this._receivedAnswersCount >= Object.keys(this.players).length) {
        this.currentReviewCatIndex = 0;
        this._resetCategoryVotes();
@@ -767,7 +763,7 @@ class StopGame {
      this._buildReviewScreen(payload);
   }
 
-  // ── Pantalla de revisión ─────────────────────
+  // â”€â”€ Pantalla de revisiÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _buildReviewScreen(payload) {
     this.showView('view-stop-review');
     document.getElementById('stop-review-round').innerText   = this.currentRound;
@@ -796,7 +792,7 @@ class StopGame {
            <span class="cat-name">${info.label}</span>
         </div>
         <div style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">
-           Categoría ${payload.catIndex + 1} de ${payload.totalCats}
+           CategorÃ­a ${payload.catIndex + 1} de ${payload.totalCats}
         </div>
     `;
     
@@ -824,24 +820,24 @@ class StopGame {
            ${!isEmpty ? `
            <div class="stop-vote-buttons" id="vote-btns-${playerId}">
              <button class="stop-vote-btn valid" data-vote="valid" data-target="${playerId}">
-               <span class="stop-vote-icon">✅</span>
-               <span class="stop-vote-label">Válida (100)</span>
+               <span class="stop-vote-icon">âœ…</span>
+               <span class="stop-vote-label">VÃ¡lida (100)</span>
                <div class="stop-vote-badges" id="badges-valid-${playerId}"></div>
              </button>
              <button class="stop-vote-btn repeated" data-vote="repeated" data-target="${playerId}">
-               <span class="stop-vote-icon">🔁</span>
+               <span class="stop-vote-icon">ðŸ”</span>
                <span class="stop-vote-label">Repetida (50)</span>
                <div class="stop-vote-badges" id="badges-repeated-${playerId}"></div>
              </button>
              <button class="stop-vote-btn invalid" data-vote="invalid" data-target="${playerId}">
-               <span class="stop-vote-icon">❌</span>
-               <span class="stop-vote-label">Inválida (0)</span>
+               <span class="stop-vote-icon">âŒ</span>
+               <span class="stop-vote-label">InvÃ¡lida (0)</span>
                <div class="stop-vote-badges" id="badges-invalid-${playerId}"></div>
              </button>
            </div>
            ` : `
            <div style="text-align:center; color: var(--danger); font-weight: bold; padding: 10px;">
-             Automáticamente Inválida
+             AutomÃ¡ticamente InvÃ¡lida
            </div>
            `}
            <div id="vote-result-${playerId}" style="display:none; text-align:center; margin-top:10px; font-weight:bold; font-size: 1.2rem;"></div>
@@ -891,7 +887,7 @@ class StopGame {
           this._resetCategoryVotes();
           this._broadcastCurrentCategory();
        } else {
-          // Ya no hay más categorías, mostrar puntajes de la ronda
+          // Ya no hay mÃ¡s categorÃ­as, mostrar puntajes de la ronda
           this._broadcastRoundResults();
        }
     });
@@ -912,7 +908,7 @@ class StopGame {
                  const p = this.players[voterId];
                  badgeContainer.innerHTML += `<div class="stop-vote-badge">${p.emoji}</div>`;
               }
-              // Si es mi voto, marcar el botón como seleccionado
+              // Si es mi voto, marcar el botÃ³n como seleccionado
               if (voterId === myId) {
                  document.querySelectorAll(`.stop-vote-btn[data-target="${targetId}"]`).forEach(b => b.classList.remove('selected'));
                  const myBtn = document.querySelector(`.stop-vote-btn[data-target="${targetId}"][data-vote="${vote}"]`);
@@ -992,9 +988,9 @@ class StopGame {
            if (btnsDiv) btnsDiv.style.display = 'none';
            resDiv.style.display = 'block';
            
-           let icon = '❌', text = 'Inválida', color = '#ef4444', pts = '+0';
-           if (res.result === 'valid') { icon = '✅'; text = 'Válida'; color = '#10b981'; pts = '+100'; }
-           if (res.result === 'repeated') { icon = '🔁'; text = 'Repetida'; color = '#3b82f6'; pts = '+50'; }
+           let icon = 'âŒ', text = 'InvÃ¡lida', color = '#ef4444', pts = '+0';
+           if (res.result === 'valid') { icon = 'âœ…'; text = 'VÃ¡lida'; color = '#10b981'; pts = '+100'; }
+           if (res.result === 'repeated') { icon = 'ðŸ”'; text = 'Repetida'; color = '#3b82f6'; pts = '+50'; }
            
            resDiv.innerHTML = `<span style="color:${color}">${icon} ${text} <span style="margin-left: 10px; padding: 2px 8px; background: rgba(0,0,0,0.1); border-radius: 10px;">${pts}</span></span>`;
         }
@@ -1034,7 +1030,7 @@ class StopGame {
     const board = document.getElementById('stop-round-scoreboard');
     board.style.display = 'block';
 
-    let scoresHTML = `<h3>🏅 Puntos de esta ronda</h3>`;
+    let scoresHTML = `<h3>ðŸ… Puntos de esta ronda</h3>`;
     
     // Sort players by total score descending
     const sortedPlayers = Object.values(this.players).sort((a,b) => b.score - a.score);
@@ -1057,25 +1053,29 @@ class StopGame {
     
     board.innerHTML = scoresHTML;
 
-    // Mostrar botón solo para host, guest espera
+    // Mostrar botÃ³n solo para host, guest espera
     if (this.isHost) {
       document.getElementById('stop-waiting-next').classList.add('hidden');
       
       const nav = document.getElementById('stop-review-nav');
-      if (!document.getElementById('btn-stop-next-round')) {
-          nav.innerHTML += `
-             <button id="btn-stop-next-round" class="btn btn-primary" style="width:100%;margin-top:1rem;">
-               Siguiente Ronda →
-             </button>
-          `;
-      } else {
-          document.getElementById('btn-stop-next-round').classList.remove('hidden');
+      let nextBtn = document.getElementById('btn-stop-next-round');
+      if (!nextBtn) {
+          nextBtn = document.createElement('button');
+          nextBtn.id = 'btn-stop-next-round';
+          nextBtn.className = 'btn btn-primary';
+          nextBtn.style = 'width:100%;margin-top:1rem;';
+          nav.appendChild(nextBtn);
+          nextBtn.addEventListener('click', () => {
+             nextBtn.classList.add('hidden');
+             this._onNextRoundClick();
+          });
       }
-      
-      document.getElementById('btn-stop-next-round').addEventListener('click', () => {
-         document.getElementById('btn-stop-next-round').classList.add('hidden');
-         this._onNextRoundClick();
-      });
+      if (this.currentRound >= TOTAL_ROUNDS) {
+          nextBtn.innerText = 'Ver Resultados Finales \uD83C\uDFC6';
+      } else {
+          nextBtn.innerText = 'Siguiente Ronda \uD83D\uDD04';
+      }
+      nextBtn.classList.remove('hidden');
     } else {
       document.getElementById('stop-waiting-next').innerText = "Esperando al creador...";
       document.getElementById('stop-waiting-next').classList.remove('hidden');
@@ -1124,18 +1124,20 @@ class StopGame {
     const myId = this.isHost ? "host" : this.network.myId;
     const iMeWin = winner.id === myId;
 
-    document.getElementById('stop-trophy').innerText = iMeWin ? '🏆' : '😔';
+    document.getElementById('stop-trophy').innerText = iMeWin ? 'ðŸ†' : 'ðŸ˜”';
     document.getElementById('stop-winner-text').innerText = iMeWin
-      ? `¡Ganaste con ${winner.score} puntos!`
-      : `¡${winner.name} ganó con ${winner.score} puntos!`;
-
+      ? `Â¡Ganaste con ${winner.score} puntos!`
+      : `Â¡${winner.name} ganÃ³ con ${winner.score} puntos!`;
     let rows = '';
     sortedPlayers.forEach((p, idx) => {
        const isWinner = idx === 0;
-       rows += `<tr>
-         <td class="${isWinner ? 'winner-cell' : ''}">#${idx + 1}</td>
-         <td class="${isWinner ? 'winner-cell' : ''}">${p.emoji} ${p.name}</td>
-         <td class="${isWinner ? 'winner-cell' : ''}">${p.score}</td>
+       const position = idx === 0 ? '\uD83E\uDD47' : idx === 1 ? '\uD83E\uDD48' : idx === 2 ? '\uD83E\uDD49' : # + (idx + 1);
+       rows += <tr style="${isWinner ? 'background: rgba(255,215,0,0.2); font-weight: bold; font-size: 1.1em;' : ''}">
+         <td>${position}</td>
+         <td>${p.emoji} ${p.name}</td>
+         <td>${p.score}</td>
+       </tr>;
+    });
        </tr>`;
     });
 
@@ -1163,7 +1165,7 @@ class StopGame {
     }, 100);
   }
 
-  // ── Helpers ──────────────────────────────────
+  // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _goHome() {
     this._disconnectNetwork();
     this._resetState();
