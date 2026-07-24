@@ -2066,3 +2066,26 @@ body::after {
   box-shadow: var(--shadow-sm);
   text-transform: uppercase;
 }
+
+/* -- Votación en Tiempo Real STOP -- */
+.stop-vote-card { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); padding: 15px; margin-bottom: 15px; }
+.stop-vote-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-weight: bold; }
+.stop-vote-player { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; }
+.stop-vote-word { font-size: 1.2rem; background: var(--bg-card-solid); padding: 4px 10px; border-radius: 6px; }
+.stop-vote-buttons { display: flex; gap: 10px; }
+.stop-vote-btn { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px; border: 2px solid var(--border); border-radius: 10px; background: transparent; cursor: pointer; transition: 0.2s; position: relative; }
+.stop-vote-btn.valid { color: #10b981; }
+.stop-vote-btn.repeated { color: #3b82f6; }
+.stop-vote-btn.invalid { color: #ef4444; }
+.stop-vote-btn:hover { background: var(--bg-card-solid); }
+.stop-vote-btn.selected { border-color: currentColor; background: rgba(0,0,0,0.05); }
+.stop-vote-btn.selected.valid { background: rgba(16, 185, 129, 0.1); }
+.stop-vote-btn.selected.repeated { background: rgba(59, 130, 246, 0.1); }
+.stop-vote-btn.selected.invalid { background: rgba(239, 68, 68, 0.1); }
+.stop-vote-icon { font-size: 1.5rem; margin-bottom: 4px; }
+.stop-vote-label { font-size: 0.8rem; font-weight: bold; }
+.stop-vote-badges { position: absolute; top: -10px; right: -10px; display: flex; gap: 2px; }
+.stop-vote-badge { background: #fff; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 0.9rem; padding: 2px; border: 1px solid #ddd; }
+.stop-vote-tie-warning { color: #f59e0b; background: rgba(245, 158, 11, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; display: none; text-align: center; }
+.stop-vote-tie-warning.active { display: block; }
+

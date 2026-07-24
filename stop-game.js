@@ -73,21 +73,8 @@ class StopGame {
       this.showView('view-home');
     });
 
-    // ── Tiempo Config ──
-    const timeDisplay = document.getElementById('stop-time-display');
-    document.getElementById('btn-stop-time-minus').addEventListener('click', () => {
-      if (this.roundMinutes > 1) {
-        this.roundMinutes--;
-        timeDisplay.innerText = this.roundMinutes;
-      }
-    });
-    document.getElementById('btn-stop-time-plus').addEventListener('click', () => {
-      if (this.roundMinutes < 15) {
-        this.roundMinutes++;
-        timeDisplay.innerText = this.roundMinutes;
-      }
-    });
-
+    // ── Tiempo Config (Eliminado, fijo a 5 mins) ──
+    
     document.getElementById('btn-stop-host').addEventListener('click', () => {
       const cats = this._getSelectedCats();
       if (cats.length < 2) {
@@ -368,20 +355,37 @@ class StopGame {
         break;
       case 'STOP_SUBMIT_ANSWERS':
         if (this.isHost) {
-           this._receiveAnswers(msg._senderId || msg.payload.id, msg.payload.answers);
+          const senderId = msg._senderId || msg.payload.id;
+          this._receiveAnswers(senderId, msg.payload.answers);
         }
         break;
-      case 'STOP_REVIEW_PHASE':
-        this.allAnswers = msg.payload.allAnswers;
-        this._tryStartReview();
+      case 'STOP_REVIEW_CATEGORY':
+        this._buildReviewScreen(msg.payload);
         break;
-      case 'STOP_SUBMIT_VOTES':
+      case 'STOP_VOTE':
         if (this.isHost) {
-           this._receiveVotes(msg._senderId || msg.payload.id, msg.payload.votes);
+           const voterId = msg._senderId || msg.payload.voterId;
+           const targetId = msg.payload.targetId;
+           const vote = msg.payload.vote;
+           this.categoryVotes[voterId][targetId] = vote;
+           this.network.send('STOP_VOTES_SYNC', { votes: this.categoryVotes });
+           this._updateVotesUI(this.categoryVotes);
+           this._checkCategoryVotesComplete();
         }
+        break;
+      case 'STOP_VOTES_SYNC':
+        this._updateVotesUI(msg.payload.votes);
+        break;
+      case 'STOP_TIE_WARNING':
+        document.getElementById('stop-vote-tie-warning').classList.add('active');
+        document.getElementById('btn-stop-next-cat').classList.add('hidden');
+        break;
+      case 'STOP_CAT_RESOLVED':
+        document.getElementById('stop-vote-tie-warning').classList.remove('active');
+        this._animatePointsForCategory(msg.payload.resolution);
         break;
       case 'STOP_ROUND_RESULTS':
-        this._showRoundResults(msg.payload);
+        this._showRoundScoreboard(msg.payload.roundPoints);
         break;
       case 'STOP_READY_NEXT':
         if (this.isHost) {
@@ -672,13 +676,18 @@ class StopGame {
     const myId = this.isHost ? "host" : this.network.myId;
 
     if (by === myId) {
-      // Fui yo
+      // Fui yo quien detuvo el juego (sea Host o Guest)
       this.network.send('STOP_TRIGGER', { triggeredBy: myId });
       this._showStopOverlay('me');
     } else if (by === "time") {
+      // Se acabo el tiempo localmente
       this._showStopOverlay('time');
     } else {
-      // Fue otro
+      // Fue otro jugador.
+      // Si soy Host, debo asegurarme de avisarle a todos los demás invitados.
+      if (this.isHost) {
+        this.network.send('STOP_TRIGGER', { triggeredBy: by });
+      }
       this._showStopOverlay('opponent');
     }
     
@@ -727,256 +736,297 @@ class StopGame {
     
     // Validar si ya recibí de todos
     if (this._receivedAnswersCount >= Object.keys(this.players).length) {
-       this.network.send('STOP_REVIEW_PHASE', { allAnswers: this.allAnswers });
-       setTimeout(() => this._buildReviewScreen(), 1000);
+       this.currentReviewCatIndex = 0;
+       this._resetCategoryVotes();
+       setTimeout(() => this._broadcastCurrentCategory(), 1000);
     }
+  }
+  
+  _resetCategoryVotes() {
+     this.categoryVotes = {};
+     Object.keys(this.players).forEach(voterId => {
+        this.categoryVotes[voterId] = {};
+     });
+  }
+  
+  _broadcastCurrentCategory() {
+     const cat = this.selectedCats[this.currentReviewCatIndex];
+     const payload = {
+        cat,
+        catIndex: this.currentReviewCatIndex,
+        totalCats: this.selectedCats.length,
+        allAnswers: this.allAnswers[this.currentRound]
+     };
+     this.network.send('STOP_REVIEW_CATEGORY', payload);
+     this._buildReviewScreen(payload);
   }
 
   // ── Pantalla de revisión ─────────────────────
-  _buildReviewScreen() {
+  _buildReviewScreen(payload) {
     this.showView('view-stop-review');
-    
     document.getElementById('stop-review-round').innerText   = this.currentRound;
     document.getElementById('stop-review-letter').innerText  = this.currentLetter;
-
-    const list = document.getElementById('stop-review-list');
-    list.innerHTML = '';
     
-    // Mis votos locales: this.myVotes[targetId][cat] = 'valid' | 'invalid' | 'repeated'
-    this.myVotes = {};
-    Object.keys(this.players).forEach(id => {
-       this.myVotes[id] = {};
-    });
-
-    this.selectedCats.forEach((cat, idx) => {
-      const info = STOP_CATEGORIES[cat];
-      const card = document.createElement('div');
-      card.className = 'stop-review-card';
-      card.style.animationDelay = `${idx * 0.07}s`;
-      card.id = `review-card-${cat}`;
-
-      let playersRows = '';
-      
-      Object.keys(this.players).forEach(playerId => {
-         const p = this.players[playerId];
-         const pAns = (this.allAnswers[this.currentRound] && this.allAnswers[this.currentRound][playerId] && this.allAnswers[this.currentRound][playerId][cat]) || '';
-         const isEmpty = !pAns.trim();
-         const ansClass = isEmpty ? 'stop-review-answer empty' : 'stop-review-answer';
-         const ansText  = isEmpty ? '(sin respuesta)' : pAns;
-         
-         // Si está vacía, no necesita votos
-         if (isEmpty) {
-            this.myVotes[playerId][cat] = 'invalid'; // Automáticamente inválida
-         }
-         
-         const voteBtns = isEmpty ? '' : `
-            <div class="stop-vote-btns" id="vote-btns-${cat}-${playerId}">
-              <button class="stop-vote-btn" data-vote="valid" data-cat="${cat}" data-target="${playerId}">
-                <span class="vote-emoji">✅</span><span class="vote-label">Válida</span>
-              </button>
-              <button class="stop-vote-btn" data-vote="repeated" data-cat="${cat}" data-target="${playerId}">
-                <span class="vote-emoji">🔁</span><span class="vote-label">Repetida</span>
-              </button>
-              <button class="stop-vote-btn" data-vote="invalid" data-cat="${cat}" data-target="${playerId}">
-                <span class="vote-emoji">❌</span><span class="vote-label">Inválida</span>
-              </button>
-            </div>
-         `;
-         
-         playersRows += `
-           <div class="stop-review-player-row">
-             <div class="stop-review-player-info">
-               <span class="stop-review-player-emoji">${p.emoji}</span>
-               <span class="stop-review-player-name">${p.name}</span>
-               <span class="${ansClass}">${ansText}</span>
-             </div>
-             ${voteBtns}
-           </div>
-         `;
-      });
-
-      card.innerHTML = `
-        <div class="stop-review-card-header">
-          <span class="cat-emoji">${info.emoji}</span>
-          <span class="cat-name">${info.label}</span>
-          <span class="cat-status" id="card-status-${cat}"></span>
+    const cat = payload.cat;
+    this.currentReviewCat = cat;
+    const info = STOP_CATEGORIES[cat];
+    const list = document.getElementById('stop-review-list');
+    
+    document.getElementById('stop-vote-tie-warning').classList.remove('active');
+    
+    if (this.isHost) {
+      document.getElementById('btn-stop-next-cat').classList.add('hidden');
+      document.getElementById('stop-waiting-next').classList.add('hidden');
+    } else {
+      document.getElementById('btn-stop-next-cat').classList.add('hidden');
+      document.getElementById('stop-waiting-next').classList.remove('hidden');
+      document.getElementById('stop-waiting-next').innerText = "Esperando votos...";
+    }
+    
+    let html = `
+      <div class="stop-review-card" style="animation-delay: 0s;">
+        <div class="stop-review-card-header" style="justify-content: center; font-size: 1.5rem; padding: 15px;">
+           <span class="cat-emoji">${info.emoji}</span>
+           <span class="cat-name">${info.label}</span>
         </div>
-        ${playersRows}
-      `;
-      list.appendChild(card);
-      this._attachVoteListeners(cat);
-    });
-
-    document.getElementById('stop-review-nav').style.display = 'block';
-    const nav = document.getElementById('stop-review-nav');
-    nav.innerHTML = `
-       <button id="btn-stop-submit-votes" class="btn btn-primary" style="width:100%;margin-top:1rem;" disabled>
-         Enviar Votos
-       </button>
-       <p id="stop-waiting-votes" class="status-text hidden">
-         Esperando a los demás<span class="dots">...</span>
-       </p>
+        <div style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">
+           Categoría ${payload.catIndex + 1} de ${payload.totalCats}
+        </div>
     `;
     
-    document.getElementById('btn-stop-submit-votes').addEventListener('click', () => {
-       document.getElementById('btn-stop-submit-votes').classList.add('hidden');
-       document.getElementById('stop-waiting-votes').classList.remove('hidden');
-       const myId = this.isHost ? "host" : this.network.myId;
+    Object.keys(this.players).forEach(playerId => {
+       const p = this.players[playerId];
+       const pAns = (payload.allAnswers && payload.allAnswers[playerId] && payload.allAnswers[playerId][cat]) || '';
+       const isEmpty = !pAns.trim();
+       const ansText = isEmpty ? '(sin respuesta)' : pAns;
        
-       if (this.isHost) {
-          this._receiveVotes(myId, this.myVotes);
-       } else {
-          this.network.send('STOP_SUBMIT_VOTES', { votes: this.myVotes });
+       if (isEmpty && this.isHost) {
+         // Auto-invalid for empty
+         Object.keys(this.players).forEach(voterId => {
+            this.categoryVotes[voterId][playerId] = 'invalid';
+         });
        }
+       
+       html += `
+         <div class="stop-vote-card" id="vote-card-${playerId}">
+           <div class="stop-vote-card-header">
+             <div class="stop-vote-player">
+               <span>${p.emoji}</span> <span>${p.name}</span>
+             </div>
+             <div class="stop-vote-word ${isEmpty ? 'empty' : ''}">${ansText}</div>
+           </div>
+           ${!isEmpty ? `
+           <div class="stop-vote-buttons" id="vote-btns-${playerId}">
+             <button class="stop-vote-btn valid" data-vote="valid" data-target="${playerId}">
+               <span class="stop-vote-icon">✅</span>
+               <span class="stop-vote-label">Válida (100)</span>
+               <div class="stop-vote-badges" id="badges-valid-${playerId}"></div>
+             </button>
+             <button class="stop-vote-btn repeated" data-vote="repeated" data-target="${playerId}">
+               <span class="stop-vote-icon">🔁</span>
+               <span class="stop-vote-label">Repetida (50)</span>
+               <div class="stop-vote-badges" id="badges-repeated-${playerId}"></div>
+             </button>
+             <button class="stop-vote-btn invalid" data-vote="invalid" data-target="${playerId}">
+               <span class="stop-vote-icon">❌</span>
+               <span class="stop-vote-label">Inválida (0)</span>
+               <div class="stop-vote-badges" id="badges-invalid-${playerId}"></div>
+             </button>
+           </div>
+           ` : `
+           <div style="text-align:center; color: var(--danger); font-weight: bold; padding: 10px;">
+             Automáticamente Inválida
+           </div>
+           `}
+           <div id="vote-result-${playerId}" style="display:none; text-align:center; margin-top:10px; font-weight:bold; font-size: 1.2rem;"></div>
+         </div>
+       `;
     });
-
-    this._checkAllVotesCast();
-  }
-
-  _attachVoteListeners(cat) {
-    const card = document.getElementById(`review-card-${cat}`);
-    if (!card) return;
     
-    card.querySelectorAll('.stop-vote-btn').forEach(btn => {
+    html += `</div>`;
+    list.innerHTML = html;
+    
+    // Attach Listeners
+    const myId = this.isHost ? "host" : this.network.myId;
+    list.querySelectorAll('.stop-vote-btn').forEach(btn => {
        btn.addEventListener('click', () => {
-          const target = btn.dataset.target;
+          const targetId = btn.dataset.target;
           const vote = btn.dataset.vote;
           
-          this.myVotes[target][cat] = vote;
-          
-          // Reset all buttons for this target/cat
-          card.querySelectorAll(`.stop-vote-btn[data-target="${target}"]`).forEach(b => {
-             b.classList.remove('selected-valid', 'selected-invalid', 'selected-rep');
-          });
-          
-          if (vote === 'valid') btn.classList.add('selected-valid');
-          else if (vote === 'invalid') btn.classList.add('selected-invalid');
-          else if (vote === 'repeated') btn.classList.add('selected-rep');
-          
-          this._checkAllVotesCast();
+          // Enviar voto al host
+          if (this.isHost) {
+             this.categoryVotes[myId][targetId] = vote;
+             this.network.send('STOP_VOTES_SYNC', { votes: this.categoryVotes });
+             this._updateVotesUI(this.categoryVotes);
+             this._checkCategoryVotesComplete();
+          } else {
+             this.network.send('STOP_VOTE', { voterId: myId, targetId, vote });
+             
+             // Optimistic UI for guest
+             list.querySelectorAll(`.stop-vote-btn[data-target="${targetId}"]`).forEach(b => b.classList.remove('selected'));
+             btn.classList.add('selected');
+          }
        });
+    });
+    
+    if (this.isHost) {
+      this._updateVotesUI(this.categoryVotes);
+      this._checkCategoryVotesComplete(); // In case everyone was empty
+    }
+    
+    // Next Cat listener (only for Host when ready)
+    const btnNext = document.getElementById('btn-stop-next-cat');
+    // Remove old listeners
+    const newBtnNext = btnNext.cloneNode(true);
+    btnNext.parentNode.replaceChild(newBtnNext, btnNext);
+    newBtnNext.addEventListener('click', () => {
+       if (this.currentReviewCatIndex < this.selectedCats.length - 1) {
+          this.currentReviewCatIndex++;
+          this._resetCategoryVotes();
+          this._broadcastCurrentCategory();
+       } else {
+          // Ya no hay más categorías, mostrar puntajes de la ronda
+          this._broadcastRoundResults();
+       }
     });
   }
 
-  _checkAllVotesCast() {
-     let allCast = true;
-     Object.keys(this.players).forEach(playerId => {
-        this.selectedCats.forEach(cat => {
-           if (!this.myVotes[playerId][cat]) {
-              allCast = false;
+  _updateVotesUI(votes) {
+     const myId = this.isHost ? "host" : this.network.myId;
+     
+     // Clear all badges
+     document.querySelectorAll('.stop-vote-badges').forEach(el => el.innerHTML = '');
+     
+     Object.keys(votes).forEach(voterId => {
+        Object.keys(votes[voterId]).forEach(targetId => {
+           const vote = votes[voterId][targetId];
+           if (vote) {
+              const badgeContainer = document.getElementById(`badges-${vote}-${targetId}`);
+              if (badgeContainer) {
+                 const p = this.players[voterId];
+                 badgeContainer.innerHTML += `<div class="stop-vote-badge">${p.emoji}</div>`;
+              }
+              // Si es mi voto, marcar el botón como seleccionado
+              if (voterId === myId) {
+                 document.querySelectorAll(`.stop-vote-btn[data-target="${targetId}"]`).forEach(b => b.classList.remove('selected'));
+                 const myBtn = document.querySelector(`.stop-vote-btn[data-target="${targetId}"][data-vote="${vote}"]`);
+                 if (myBtn) myBtn.classList.add('selected');
+              }
+           }
+        });
+     });
+  }
+  
+  _checkCategoryVotesComplete() {
+     if (!this.isHost) return;
+     let allVoted = true;
+     const playerIds = Object.keys(this.players);
+     
+     playerIds.forEach(voterId => {
+        playerIds.forEach(targetId => {
+           if (!this.categoryVotes[voterId][targetId]) {
+              allVoted = false;
            }
         });
      });
      
-     const btn = document.getElementById('btn-stop-submit-votes');
-     if (btn) btn.disabled = !allCast;
-  }
-  _receiveVotes(senderId, votes) {
-    if (!this._allVotesList) this._allVotesList = [];
-    this._allVotesList.push(votes);
-    this._receivedVotesCount++;
-    
-    if (this._receivedVotesCount >= Object.keys(this.players).length) {
-       this._tallyVotesAndAssignPoints();
-    }
-  }
-  
-  _tallyVotesAndAssignPoints() {
-     // this._allVotesList is an array of objects: { targetId: { cat: vote } }
-     
-     // Para cada targetId, y cada cat, contamos los votos
-     const resolution = {}; // { targetId: { cat: { result, points } } }
-     const roundPoints = {}; // { targetId: points }
-     
-     Object.keys(this.players).forEach(targetId => {
-        resolution[targetId] = {};
-        let total = 0;
+     if (allVoted) {
+        // Resolve tie or consensus
+        let hasTie = false;
+        const resolution = {};
         
-        this.selectedCats.forEach(cat => {
-           let counts = { 'valid': 0, 'invalid': 0, 'repeated': 0 };
-           
-           this._allVotesList.forEach(voteObj => {
-              const v = voteObj[targetId] && voteObj[targetId][cat];
-              if (v && counts[v] !== undefined) {
-                 counts[v]++;
-              }
+        playerIds.forEach(targetId => {
+           let counts = { valid: 0, invalid: 0, repeated: 0 };
+           playerIds.forEach(voterId => {
+              counts[this.categoryVotes[voterId][targetId]]++;
            });
            
-           // Determinar mayoría (valid > repeated > invalid en caso de empate)
-           let best = 'invalid';
-           let max = counts['invalid'];
+           const max = Math.max(counts.valid, counts.invalid, counts.repeated);
+           const ties = ['valid', 'invalid', 'repeated'].filter(v => counts[v] === max);
            
-           if (counts['repeated'] > max) { best = 'repeated'; max = counts['repeated']; }
-           else if (counts['repeated'] === max && max > 0) { best = 'repeated'; }
-           
-           if (counts['valid'] > max) { best = 'valid'; max = counts['valid']; }
-           else if (counts['valid'] === max && max > 0) { best = 'valid'; }
-           
-           let pts = 0;
-           if (best === 'valid') pts = 100;
-           else if (best === 'repeated') pts = 50;
-           
-           resolution[targetId][cat] = { result: best, points: pts };
-           total += pts;
+           if (ties.length > 1) {
+              hasTie = true;
+           } else {
+              let pts = 0;
+              if (ties[0] === 'valid') pts = 100;
+              else if (ties[0] === 'repeated') pts = 50;
+              resolution[targetId] = { result: ties[0], points: pts };
+           }
         });
-        roundPoints[targetId] = total;
+        
+        if (hasTie) {
+           this.network.send('STOP_TIE_WARNING', {});
+           document.getElementById('stop-vote-tie-warning').classList.add('active');
+           document.getElementById('btn-stop-next-cat').classList.add('hidden');
+        } else {
+           this.network.send('STOP_CAT_RESOLVED', { resolution });
+           document.getElementById('stop-vote-tie-warning').classList.remove('active');
+           document.getElementById('btn-stop-next-cat').classList.remove('hidden');
+           
+           // Store resolution for final tally
+           if (!this.roundResolutions) this.roundResolutions = {};
+           this.roundResolutions[this.currentReviewCat] = resolution;
+           
+           this._animatePointsForCategory(resolution);
+        }
+     } else {
+        this.network.send('STOP_CAT_RESOLVED', { removeWarning: true }); // Dummy for removing warning
+        document.getElementById('stop-vote-tie-warning').classList.remove('active');
+        document.getElementById('btn-stop-next-cat').classList.add('hidden');
+     }
+  }
+  
+  _animatePointsForCategory(resolution) {
+     if (!resolution) return; // called from dummy removeWarning
+     Object.keys(resolution).forEach(targetId => {
+        const res = resolution[targetId];
+        const resDiv = document.getElementById(`vote-result-${targetId}`);
+        const btnsDiv = document.getElementById(`vote-btns-${targetId}`);
+        if (resDiv && res) {
+           if (btnsDiv) btnsDiv.style.display = 'none';
+           resDiv.style.display = 'block';
+           
+           let icon = '❌', text = 'Inválida', color = '#ef4444', pts = '+0';
+           if (res.result === 'valid') { icon = '✅'; text = 'Válida'; color = '#10b981'; pts = '+100'; }
+           if (res.result === 'repeated') { icon = '🔁'; text = 'Repetida'; color = '#3b82f6'; pts = '+50'; }
+           
+           resDiv.innerHTML = `<span style="color:${color}">${icon} ${text} <span style="margin-left: 10px; padding: 2px 8px; background: rgba(0,0,0,0.1); border-radius: 10px;">${pts}</span></span>`;
+        }
      });
      
-     // Asignar puntos a los jugadores
+     if (this.isHost) {
+        // Wait a bit or let Host click Next explicitly
+     } else {
+        document.getElementById('stop-waiting-next').innerText = "Esperando al creador...";
+     }
+  }
+  
+  _broadcastRoundResults() {
+     const roundPoints = {};
      Object.keys(this.players).forEach(id => {
+        roundPoints[id] = 0;
+        this.selectedCats.forEach(cat => {
+           if (this.roundResolutions && this.roundResolutions[cat] && this.roundResolutions[cat][id]) {
+              roundPoints[id] += this.roundResolutions[cat][id].points;
+           }
+        });
         this.players[id].score += roundPoints[id];
      });
      
-     const payload = {
-        resolution,
-        roundPoints,
-        players: this.players
-     };
-     
+     const payload = { roundPoints, players: this.players };
      this.network.send('STOP_ROUND_RESULTS', payload);
-     this._showRoundResults(payload);
-  }
-  
-  _showRoundResults(payload) {
-     this.players = payload.players;
-     
-     // Actualizar las cartas de la UI con los resultados
-     this.selectedCats.forEach(cat => {
-        Object.keys(this.players).forEach(playerId => {
-           const res = payload.resolution[playerId][cat];
-           const btnsDiv = document.getElementById(`vote-btns-${cat}-${playerId}`);
-           if (btnsDiv) btnsDiv.style.display = 'none';
-           
-           // Insert result HTML next to the player's row
-           const row = document.getElementById(`vote-btns-${cat}-${playerId}`)?.parentElement;
-           if (row) {
-             const resDiv = document.createElement('div');
-             
-             let cls = 'result-no', icon = '❌', text = 'No válida', ptsText = '+0';
-             if (res.result === 'valid')    { cls = 'result-yes'; icon = '✅'; text = 'Válida';       ptsText = `+100`; }
-             if (res.result === 'repeated') { cls = 'result-rep'; icon = '🔁'; text = 'Repetida';     ptsText = `+50`; }
-             
-             resDiv.innerHTML = `
-                <div class="stop-vote-result ${cls}" style="margin-left: 10px;">
-                  <span>${icon} ${text}</span>
-                  <span class="stop-vote-result-pts">${ptsText}</span>
-                </div>
-             `;
-             row.appendChild(resDiv);
-           }
-        });
-        
-        const cardStatus = document.getElementById(`card-status-${cat}`);
-        if (cardStatus) cardStatus.innerText = '✅ Resuelto';
-     });
-     
-     this._showRoundScoreboard(payload.roundPoints);
+     this._showRoundScoreboard(roundPoints);
   }
   
   _showRoundScoreboard(roundPoints) {
-    const nav = document.getElementById('stop-review-nav');
+    const list = document.getElementById('stop-review-list');
+    list.innerHTML = ''; // Clear review cards
+    
+    document.getElementById('stop-vote-tie-warning').classList.remove('active');
+    document.getElementById('btn-stop-next-cat').classList.add('hidden');
+    
     const board = document.getElementById('stop-round-scoreboard');
-    nav.style.display = 'block';
+    board.style.display = 'block';
 
     let scoresHTML = `<h3>🏅 Puntos de esta ronda</h3>`;
     
@@ -1003,21 +1053,27 @@ class StopGame {
 
     // Mostrar botón solo para host, guest espera
     if (this.isHost) {
-      document.getElementById('btn-stop-submit-votes').classList.add('hidden');
-      document.getElementById('stop-waiting-votes').classList.add('hidden');
+      document.getElementById('stop-waiting-next').classList.add('hidden');
       
-      nav.innerHTML += `
-         <button id="btn-stop-next-round" class="btn btn-primary" style="width:100%;margin-top:1rem;">
-           Siguiente Ronda →
-         </button>
-      `;
+      const nav = document.getElementById('stop-review-nav');
+      if (!document.getElementById('btn-stop-next-round')) {
+          nav.innerHTML += `
+             <button id="btn-stop-next-round" class="btn btn-primary" style="width:100%;margin-top:1rem;">
+               Siguiente Ronda →
+             </button>
+          `;
+      } else {
+          document.getElementById('btn-stop-next-round').classList.remove('hidden');
+      }
+      
       document.getElementById('btn-stop-next-round').addEventListener('click', () => {
+         document.getElementById('btn-stop-next-round').classList.add('hidden');
          this._onNextRoundClick();
       });
     } else {
-      document.getElementById('btn-stop-submit-votes').classList.add('hidden');
-      document.getElementById('stop-waiting-votes').innerText = "Esperando al creador...";
-      document.getElementById('stop-waiting-votes').classList.remove('hidden');
+      document.getElementById('stop-waiting-next').innerText = "Esperando al creador...";
+      document.getElementById('stop-waiting-next').classList.remove('hidden');
+      if (document.getElementById('btn-stop-next-round')) document.getElementById('btn-stop-next-round').classList.add('hidden');
     }
 
     setTimeout(() => {

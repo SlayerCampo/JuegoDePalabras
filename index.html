@@ -170,10 +170,15 @@
           <p id="lobby-waiting-text" class="loading-text">Esperando jugadores<span class="dots">...</span></p>
         </div>
         <div id="lobby-guest" class="hidden">
-          <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:1rem;">Ingresa el código de la sala:</p>
-          <input type="text" id="room-code-input" class="input-large" placeholder="EJ: A1B2" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" />
-          <button id="btn-join" class="btn btn-primary">Unirse</button>
-          <p id="join-error" class="error-text hidden">Código inválido o sala no encontrada.</p>
+          <div id="lobby-guest-form">
+            <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:1rem;">Ingresa el código de la sala:</p>
+            <input type="text" id="room-code-input" class="input-large" placeholder="EJ: A1B2" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+            <button id="btn-join" class="btn btn-primary">Unirse</button>
+            <p id="join-error" class="error-text hidden">Código inválido o sala no encontrada.</p>
+          </div>
+          <div id="lobby-guest-waiting" class="hidden">
+            <!-- Cargando estado... -->
+          </div>
         </div>
         <button class="btn btn-text btn-back">← Volver</button>
       </section>
@@ -330,14 +335,7 @@
 
         <p id="stop-cat-warning" class="error-text hidden" style="margin-bottom:0.8rem;">¡Selecciona al menos 2 categorías!</p>
 
-        <div style="margin: 15px 0;">
-          <label style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px; display: block;">⏳ Tiempo por ronda (minutos):</label>
-          <div style="display: flex; justify-content: center; align-items: center; gap: 15px; background: var(--bg-card); padding: 10px; border-radius: 12px;">
-            <button class="btn btn-secondary" id="btn-stop-time-minus" style="padding: 5px 15px;">-</button>
-            <span id="stop-time-display" style="font-size: 1.2rem; font-weight: bold; width: 30px;">5</span>
-            <button class="btn btn-secondary" id="btn-stop-time-plus" style="padding: 5px 15px;">+</button>
-          </div>
-        </div>
+        <!-- Tiempo fijo a 5 minutos, eliminado de la UI -->
 
         <div class="btn-group" style="margin-top:1rem;">
           <button id="btn-stop-host" class="btn btn-primary">🛑 Crear Sala STOP</button>
@@ -468,16 +466,15 @@
           <!-- Generado dinámicamente -->
         </div>
 
-        <!-- Navegación: siguiente ronda / fin -->
-        <div class="stop-review-nav" id="stop-review-nav" style="display:none;">
-          <div class="stop-round-scoreboard" id="stop-round-scoreboard">
-            <!-- Resumen de puntos de esta ronda -->
+        <div class="stop-review-nav" id="stop-review-nav">
+          <div id="stop-vote-tie-warning" class="stop-vote-tie-warning">
+            ⚠️ Empate: ¡Los votos están divididos! Deben llegar a un acuerdo.
           </div>
-          <button id="btn-stop-next-round" class="btn btn-primary" style="width:100%;margin-top:1rem;">
-            Siguiente Ronda →
+          <button id="btn-stop-next-cat" class="btn btn-primary" style="width:100%;margin-top:1rem;">
+            Siguiente Categoría →
           </button>
           <p id="stop-waiting-next" class="status-text hidden">
-            Esperando al otro jugador<span class="dots">...</span>
+            Esperando a los demás<span class="dots">...</span>
           </p>
         </div>
       </section>
@@ -529,8 +526,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <!-- Lógica local -->
+    <script src="common.js"></script>
     <script src="peer-network.js"></script>
-    <script src="app.js"></script>
+    <script src="palabras-game.js"></script>
     <script src="stop-game.js"></script>
+    <script src="app.js"></script>
   </body>
 </html>
