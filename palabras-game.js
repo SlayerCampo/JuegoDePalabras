@@ -579,6 +579,15 @@ class WordGame {
       case "START_GAME":
         this.startGameSession(msg.payload);
         break;
+      case "SUBMIT_WORD":
+        if (this.isHost) {
+          this.hostValidateWord(msg.payload);
+        }
+        break;
+      case "WORD_REJECTED":
+        document.getElementById("word-input").disabled = false;
+        document.getElementById("btn-verify").disabled = false;
+        break;
       case "WORD_TYPED":
         if (!this.amIActive()) {
           this.updateSpectatorTyping(msg.payload);
@@ -649,9 +658,12 @@ class WordGame {
     
     const allReady = Object.values(this.players).every(p => p.isReady);
     if (allReady && Object.keys(this.players).length >= 2) {
-      // Orden aleatorio o el host primero
       this.playerOrder = Object.keys(this.players);
       this.activePlayerIndex = 0;
+      
+      const nextRoundDuration = getRoundDuration(this.gameMode, 1);
+      const turnStartTime = Date.now() + 3000;
+      const turnEndTime = turnStartTime + nextRoundDuration * 1000;
       
       const initialState = {
         mode: this.gameMode,
@@ -662,7 +674,9 @@ class WordGame {
         playerOrder: this.playerOrder,
         players: this.players,
         currentLetter: this.currentLetter,
-        roundsCount: this.roundsCount
+        roundsCount: this.roundsCount,
+        turnStartTime: turnStartTime,
+        turnEndTime: turnEndTime
       };
       
       this.network.send("START_GAME", initialState);
@@ -716,6 +730,9 @@ class WordGame {
     const countDisplay = document.getElementById("big-countdown");
     countDisplay.innerText = count;
 
+    const delay = Math.max(0, (state.turnStartTime || (Date.now() + 3000)) - Date.now());
+    const intervalTime = delay / 3;
+
     const interval = setInterval(() => {
       count--;
       if (count > 0) {
@@ -726,9 +743,9 @@ class WordGame {
       } else {
         clearInterval(interval);
         this.showView("game");
-        this.startTurn();
+        this.startTurn(state.turnEndTime);
       }
-    }, 1000);
+    }, intervalTime);
   }
 
   // --- Lógica de Juego ---
@@ -789,7 +806,7 @@ class WordGame {
     }
   }
 
-  startTurn() {
+  startTurn(turnEndTime) {
     const roundLabel = document.getElementById("round-label");
     const turnHint = document.getElementById("turn-hint");
     const targetLetter = document.getElementById("target-letter");
@@ -823,12 +840,16 @@ class WordGame {
       this.updateSpectatorTyping("");
     }
 
-    this.startTimer();
+    this.startTimer(turnEndTime);
   }
 
-  startTimer() {
+  startTimer(turnEndTime) {
     const duration = getRoundDuration(this.gameMode, this.currentRound);
-    this.timeLeft = duration;
+    
+    // Si no hay endTime explícito, calcularlo (fallback)
+    const endTime = turnEndTime || (Date.now() + duration * 1000);
+    const actualDuration = Math.max(0.1, (endTime - Date.now()) / 1000);
+    this.timeLeft = actualDuration;
 
     const mecha = document.getElementById("mecha-bar");
     const spark = document.getElementById("mecha-spark");
@@ -844,22 +865,21 @@ class WordGame {
     void mecha.offsetWidth;
 
     // Start animation
-    mecha.style.transition = `transform ${duration}s linear`;
-    spark.style.transition = `right ${duration}s linear`;
+    mecha.style.transition = `transform ${actualDuration}s linear`;
+    spark.style.transition = `right ${actualDuration}s linear`;
 
     if (this.timerDisplayInterval) {
       clearInterval(this.timerDisplayInterval);
     }
 
-    const endTime = Date.now() + duration * 1000;
     this.boomTriggered = false;
     
     const updateTimerDisplay = () => {
       const remaining = Math.max(0, (endTime - Date.now()) / 1000);
       timeRemaining.innerText = `${formatSeconds(remaining)}s`;
       
-      // Chequeo exacto de tiempo sin depender de setTimeout
-      if (remaining <= 0 && this.amIActive() && this.gameActive && !this.boomTriggered) {
+      // SOLO EL HOST activa el BOOM para asegurar sincronía
+      if (this.isHost && remaining <= 0 && this.gameActive && !this.boomTriggered) {
          this.boomTriggered = true;
          if (this.timer) { clearTimeout(this.timer); this.timer = null; }
          this.triggerBoom();
@@ -874,15 +894,15 @@ class WordGame {
       spark.style.right = `100%`;
     });
 
-    // Fallback timer just in case
-    if (this.amIActive()) {
+    // Fallback timer just in case, SOLO PARA EL HOST
+    if (this.isHost) {
       if (this.timer) clearTimeout(this.timer);
       this.timer = setTimeout(() => {
         if (!this.boomTriggered && this.gameActive) {
            this.boomTriggered = true;
            this.triggerBoom();
         }
-      }, duration * 1000 + 500); // 500ms safety margin
+      }, actualDuration * 1000 + 500); // 500ms safety margin
     }
   }
 
@@ -936,10 +956,23 @@ class WordGame {
       return;
     }
 
-    // ¡Acierto!
+    // ¡Acierto local!
     errorEl.classList.add("hidden");
     inputEl.disabled = true; // Bloquear input inmediatamente
     document.getElementById("btn-verify").disabled = true; // Bloquear botón también
+
+    if (this.isHost) {
+      this.hostValidateWord(fullWord);
+    } else {
+      this.network.send("SUBMIT_WORD", fullWord);
+    }
+  }
+
+  hostValidateWord(fullWord) {
+    if (this.usedWords.has(fullWord)) {
+      return; 
+    }
+
     clearTimeout(this.timer);
     this.timer = null;
     if (this.timerDisplayInterval) {
@@ -947,8 +980,6 @@ class WordGame {
       this.timerDisplayInterval = null;
     }
     this.usedWords.add(fullWord);
-
-    document.body.classList.add("flash-green");
 
     // ✅ Guardar la jugada en el historial
     const round = this.currentRound;
@@ -973,6 +1004,10 @@ class WordGame {
     const turnsPerRound = playersCount * 2;
     const nextRound = Math.floor((nextTurnCount - 1) / turnsPerRound) + 1;
 
+    const nextRoundDuration = getRoundDuration(this.gameMode, nextRound);
+    const turnStartTime = Date.now() + 3000;
+    const turnEndTime = turnStartTime + nextRoundDuration * 1000;
+
     const nextState = {
       turnCount: nextTurnCount,
       round: nextRound,
@@ -989,14 +1024,14 @@ class WordGame {
           : nextRound > this.currentRound
             ? getRandomLetter(this.currentLetter)
             : this.currentLetter,
+      turnStartTime: turnStartTime,
+      turnEndTime: turnEndTime
     };
 
+    // Broadcast a TODOS los clientes
     this.network.send("WORD_VALIDATED", nextState);
-    this.showTurnChangeOverlay(nextState);
-
-    setTimeout(() => {
-      this.applyNextState(nextState);
-    }, 3000);
+    // Ejecutar localmente en el host
+    this.handleOpponentSuccess(nextState);
   }
 
   handleOpponentSuccess(nextState) {
@@ -1006,10 +1041,14 @@ class WordGame {
     }
     this.usedWords.add(nextState.lastWord);
     this.wordHistory = nextState.history;
+    document.body.classList.add("flash-green");
     this.showTurnChangeOverlay(nextState);
+    
+    const delay = Math.max(0, nextState.turnStartTime - Date.now());
     setTimeout(() => {
+      document.body.classList.remove("flash-green");
       this.applyNextState(nextState);
-    }, 3000);
+    }, delay);
   }
 
   getPlayerNameBySide(side) {
@@ -1049,19 +1088,19 @@ class WordGame {
   }
 
   triggerBoom() {
+    // SOLO EL HOST EJECUTA ESTO
+    if (!this.isHost) return;
+
     if (this.timerDisplayInterval) {
       clearInterval(this.timerDisplayInterval);
       this.timerDisplayInterval = null;
     }
-    const myId = this.isHost ? "host" : (this.network ? this.network.myId : "guest");
-    if (!this.players[myId]) return; // Guard clause
     
-    this.players[myId].lives--;
+    const loserId = this.activePlayer;
+    if (!this.players[loserId]) return; 
+    
+    this.players[loserId].lives--;
     this.updateHeaderUI();
-
-    const overlay = document.getElementById("boom-overlay");
-    overlay.classList.remove("hidden");
-    document.body.classList.add("shake");
 
     // Guardar BOOM en el historial
     const round = this.currentRound;
@@ -1070,22 +1109,25 @@ class WordGame {
       historyEntry = { round, letter: this.currentLetter, words: {} };
       this.wordHistory.push(historyEntry);
     }
-    historyEntry.words[myId] = "💥 BOOM";
+    historyEntry.words[loserId] = "💥 BOOM";
 
     const nextTurnCount = this.turnCount + 1;
     const playersCount = this.playerOrder.length;
     const turnsPerRound = playersCount * 2;
     const nextRound = Math.floor((nextTurnCount - 1) / turnsPerRound) + 1;
-    
     const nextPlayerIndex = (this.activePlayerIndex + 1) % this.playerOrder.length;
+
+    const nextRoundDuration = getRoundDuration(this.gameMode, nextRound);
+    const turnStartTime = Date.now() + 2000;
+    const turnEndTime = turnStartTime + nextRoundDuration * 1000;
 
     const nextState = {
       turnCount: nextTurnCount,
       round: nextRound,
       activePlayer: this.playerOrder[nextPlayerIndex],
       activePlayerIndex: nextPlayerIndex,
-      loser: myId,
-      livesRemaining: this.players[myId].lives,
+      loser: loserId,
+      livesRemaining: this.players[loserId].lives,
       history: this.wordHistory,
       mode: this.gameMode,
       letterMode: this.letterMode,
@@ -1095,15 +1137,12 @@ class WordGame {
           : nextRound > this.currentRound
             ? getRandomLetter(this.currentLetter)
             : this.currentLetter,
+      turnStartTime: turnStartTime,
+      turnEndTime: turnEndTime
     };
 
     this.network.send("BOOM", nextState);
-
-    setTimeout(() => {
-      overlay.classList.add("hidden");
-      document.body.classList.remove("shake");
-      this.checkGameOverOrContinue(nextState);
-    }, 2000);
+    this.handleBoom(nextState);
   }
 
   handleBoom(nextState) {
@@ -1121,11 +1160,12 @@ class WordGame {
     overlay.classList.remove("hidden");
     document.body.classList.add("shake");
 
+    const delay = Math.max(0, nextState.turnStartTime - Date.now());
     setTimeout(() => {
       overlay.classList.add("hidden");
       document.body.classList.remove("shake");
       this.checkGameOverOrContinue(nextState);
-    }, 2000);
+    }, delay);
   }
 
   checkGameOverOrContinue(nextState) {
@@ -1166,7 +1206,7 @@ class WordGame {
     if (nextState.history) this.wordHistory = nextState.history;
     if (nextState.players) this.players = nextState.players;
     this.updateHeaderUI();
-    this.startTurn();
+    this.startTurn(nextState.turnEndTime);
   }
 
   showGameOver(winner) {
