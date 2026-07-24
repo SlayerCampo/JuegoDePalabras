@@ -15,6 +15,7 @@ const STOP_CATEGORIES = {
 
 const STOP_LETTERS = 'ABCDEFGHIJLMNOPRSTUVZ'.split('');
 const TOTAL_ROUNDS = 5;
+const STOP_EMOJIS = ["😎", "🤖", "👽", "👻", "🤡", "🦊", "🐯", "🐶", "🐱", "🐵"];
 
 // ── Clase principal StopGame ──────────────────────
 class StopGame {
@@ -119,12 +120,9 @@ class StopGame {
     // ── Perfil STOP ──
     let stopEmojiIdx = 0;
     document.getElementById('btn-stop-change-emoji').addEventListener('click', () => {
-      // EMOJIS viene de app.js
-      if (typeof EMOJIS !== 'undefined') {
-        stopEmojiIdx = (stopEmojiIdx + 1) % EMOJIS.length;
-        this.myProfile.emoji = EMOJIS[stopEmojiIdx];
-        document.getElementById('stop-current-emoji').innerText = this.myProfile.emoji;
-      }
+      stopEmojiIdx = (stopEmojiIdx + 1) % STOP_EMOJIS.length;
+      this.myProfile.emoji = STOP_EMOJIS[stopEmojiIdx];
+      document.getElementById('stop-current-emoji').innerText = this.myProfile.emoji;
     });
 
     document.getElementById('stop-player-name-input').addEventListener('input', (e) => {
@@ -165,6 +163,8 @@ class StopGame {
       this.network.send('GO_TO_PROFILE', {});
       this._resetProfileUI();
       this.showView('view-stop-profile');
+      this._updateReadyUI();
+      this._broadcastLobbyState();
     });
 
     // ── Botón STOP dentro del juego ──
@@ -278,9 +278,17 @@ class StopGame {
     if (code.length !== 4) return;
     this.joiningRoom = true;
     document.getElementById('stop-join-error').classList.add('hidden');
+    
+    // Ocultar formulario y mostrar "Conectando..."
+    document.getElementById('stop-lobby-guest-form').classList.add('hidden');
+    document.getElementById('stop-lobby-guest-waiting').classList.remove('hidden');
+    document.getElementById('stop-lobby-guest-waiting').innerHTML = `<p class="loading-text">Conectando a la sala ${code}<span class="dots">...</span></p>`;
+
     if (this.peerReady) {
       try { await this.peerReady; } catch {
         document.getElementById('stop-join-error').classList.remove('hidden');
+        document.getElementById('stop-lobby-guest-form').classList.remove('hidden');
+        document.getElementById('stop-lobby-guest-waiting').classList.add('hidden');
         this.joiningRoom = false; return;
       }
     }
@@ -288,6 +296,8 @@ class StopGame {
       await this.network.joinRoom(code);
     } catch {
       document.getElementById('stop-join-error').classList.remove('hidden');
+      document.getElementById('stop-lobby-guest-form').classList.remove('hidden');
+      document.getElementById('stop-lobby-guest-waiting').classList.add('hidden');
     } finally {
       this.joiningRoom = false;
     }
@@ -300,7 +310,7 @@ class StopGame {
         if (this.isHost && msg.payload) {
           const newPlayerId = msg.payload;
           this.players[newPlayerId] = {
-            name: "Invitado", emoji: EMOJIS[1], isReady: false, id: newPlayerId, score: 0
+            name: "Invitado", emoji: STOP_EMOJIS[1], isReady: false, id: newPlayerId, score: 0
           };
           this._updateHostLobbyUI();
         }
@@ -310,16 +320,25 @@ class StopGame {
           delete this.players[msg.payload];
           this._updateHostLobbyUI();
           this._broadcastLobbyState();
+          if (document.getElementById('view-stop-profile').classList.contains('active')) {
+             this._updateReadyUI();
+             this._checkAllReady();
+          }
         }
         break;
       case 'CONNECTED':
         document.getElementById('stop-join-error').classList.add('hidden');
         document.getElementById('stop-lobby-guest-form').classList.add('hidden');
         document.getElementById('stop-lobby-guest-waiting').classList.remove('hidden');
+        document.getElementById('stop-lobby-guest-waiting').innerHTML = `
+            <p class="loading-text" style="color:var(--success);font-weight:bold;margin-bottom:0.5rem;">¡Conectado exitosamente!</p>
+            <p class="loading-text">Esperando a que el creador inicie la sala<span class="dots">...</span></p>
+        `;
         break;
       case 'GO_TO_PROFILE':
         this._resetProfileUI();
         this.showView('view-stop-profile');
+        this._updateReadyUI();
         break;
       case 'STOP_LOBBY_STATE':
         this.players = msg.payload;
@@ -433,7 +452,11 @@ class StopGame {
   _checkAllReady() {
     if (!this.isHost) return;
     const allReady = Object.values(this.players).every(p => p.isReady);
-    if (allReady && Object.keys(this.players).length >= 2) {
+    
+    // Validar por si el Host tiene un estado corrupto (jugadores incompletos o menos de 2)
+    const totalPlayers = Object.keys(this.players).length;
+    if (allReady && totalPlayers >= 2) {
+      // Iniciar el juego
       const letter = this._getRandomLetter();
       const payload = {
         categories: this.selectedCats,
