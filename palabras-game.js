@@ -682,6 +682,14 @@ class WordGame {
     }
     this.turnCount = state.turnCount;
     this.activePlayer = state.activePlayer;
+    
+    if (state.playerOrder) {
+      this.playerOrder = state.playerOrder;
+    }
+    if (state.activePlayerIndex !== undefined) {
+      this.activePlayerIndex = state.activePlayerIndex;
+    }
+
     const numPlayers = Object.keys(this.players).length;
     this.currentRound = state.round || getRoundNumber(this.turnCount, numPlayers);
     this.currentLetter = state.currentLetter || getRandomLetter();
