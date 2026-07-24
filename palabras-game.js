@@ -801,7 +801,7 @@ class WordGame {
 
     if (this.amIActive()) {
       input.disabled = false;
-      document.getElementById("btn-submit-word").disabled = false;
+      document.getElementById("btn-verify").disabled = false;
       turnHint.innerText = `Escribe una palabra con "${this.currentLetter}"`;
       actionZone.classList.remove("hidden");
       spectatorZone.classList.add("hidden");
@@ -931,7 +931,7 @@ class WordGame {
     // ¡Acierto!
     errorEl.classList.add("hidden");
     inputEl.disabled = true; // Bloquear input inmediatamente
-    document.getElementById("btn-submit-word").disabled = true; // Bloquear botón también
+    document.getElementById("btn-verify").disabled = true; // Bloquear botón también
     clearTimeout(this.timer);
     this.timer = null;
     if (this.timerDisplayInterval) {
