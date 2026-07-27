@@ -957,6 +957,10 @@ class StopGame {
      if (allVoted) {
         if (this.voteTimeout) clearTimeout(this.voteTimeout);
         this._resolveVotes(playerIds);
+     } else {
+        this.network.send('STOP_CAT_RESOLVED', { removeWarning: true }); // Dummy for removing warning
+        document.getElementById('stop-vote-tie-warning').classList.remove('active');
+        document.getElementById('btn-stop-next-cat').classList.add('hidden');
      }
   }
   
@@ -1014,12 +1018,7 @@ class StopGame {
            
            this._animatePointsForCategory(resolution);
         }
-     } else {
-        this.network.send('STOP_CAT_RESOLVED', { removeWarning: true }); // Dummy for removing warning
-        document.getElementById('stop-vote-tie-warning').classList.remove('active');
-        document.getElementById('btn-stop-next-cat').classList.add('hidden');
      }
-  }
   
   _animatePointsForCategory(resolution) {
      if (!resolution) return; // called from dummy removeWarning
