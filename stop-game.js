@@ -890,12 +890,6 @@ class StopGame {
     if (this.isHost) {
       this._updateVotesUI(this.categoryVotes);
       this._checkCategoryVotesComplete(); // In case everyone was empty
-      
-      // Iniciar timer de seguridad para los votos
-      if (this.voteTimeout) clearTimeout(this.voteTimeout);
-      this.voteTimeout = setTimeout(() => {
-        this._forceResolveVotes();
-      }, 20000); // 20 segundos máximo para votar
     }
     
     // Next Cat listener (only for Host when ready)
@@ -955,28 +949,12 @@ class StopGame {
      });
      
      if (allVoted) {
-        if (this.voteTimeout) clearTimeout(this.voteTimeout);
         this._resolveVotes(playerIds);
      } else {
         this.network.send('STOP_CAT_RESOLVED', { removeWarning: true }); // Dummy for removing warning
         document.getElementById('stop-vote-tie-warning').classList.remove('active');
         document.getElementById('btn-stop-next-cat').classList.add('hidden');
      }
-  }
-  
-  _forceResolveVotes() {
-     const playerIds = Object.keys(this.players);
-     // Auto-validar a los que no votaron
-     playerIds.forEach(voterId => {
-        playerIds.forEach(targetId => {
-           if (!this.categoryVotes[voterId][targetId]) {
-              this.categoryVotes[voterId][targetId] = 'valid'; // default
-           }
-        });
-     });
-     this.network.send('STOP_VOTES_SYNC', { votes: this.categoryVotes });
-     this._updateVotesUI(this.categoryVotes);
-     this._resolveVotes(playerIds);
   }
 
   _resolveVotes(playerIds) {

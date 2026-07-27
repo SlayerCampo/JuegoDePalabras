@@ -2165,3 +2165,19 @@ body::after {
   }
 }
 
+
+/* Scrollable ready player lists for 6+ players */
+#ready-players-list, #stop-ready-players-list {
+  max-height: 120px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+/* Custom scrollbar for small lists */
+#ready-players-list::-webkit-scrollbar, #stop-ready-players-list::-webkit-scrollbar {
+  width: 4px;
+}
+#ready-players-list::-webkit-scrollbar-thumb, #stop-ready-players-list::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 4px;
+}
+
