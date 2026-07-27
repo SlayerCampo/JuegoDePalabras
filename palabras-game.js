@@ -604,6 +604,17 @@ class WordGame {
       case "BOOM":
         this.handleBoom(msg.payload);
         break;
+      case "TIME_OUT":
+        if (this.isHost) {
+          const senderId = msg._senderId || msg.payload.id;
+          if (senderId === this.activePlayer && !this.boomTriggered && this.gameActive) {
+            this.hostForcedBoom = true;
+            this.boomTriggered = true;
+            if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+            this.triggerBoom();
+          }
+        }
+        break;
       case "GAME_OVER":
         if (msg.payload.eliminationOrder) this.eliminationOrder = msg.payload.eliminationOrder;
         this.showGameOver(msg.payload.winner);
@@ -846,6 +857,15 @@ class WordGame {
       document.getElementById("active-player-name").innerText = activeName;
       this.updateSpectatorTyping("");
     }
+    
+    // Manage eliminated state overlay
+    const myId = this.isHost ? "host" : (this.network ? this.network.myId : "guest");
+    const eliminatedOverlay = document.getElementById("eliminated-overlay");
+    if (this.players[myId] && this.players[myId].lives <= 0) {
+      eliminatedOverlay.classList.remove("hidden");
+    } else {
+      eliminatedOverlay.classList.add("hidden");
+    }
 
     this.startTimer(turnEndTime);
   }
@@ -907,15 +927,25 @@ class WordGame {
                this.hostForcedBoom = true;
                if (this.timer) { clearTimeout(this.timer); this.timer = null; }
                this.triggerBoom();
+            } else {
+               // Send timeout if guest
+               const myId = this.network ? this.network.myId : "guest";
+               this.network.send("TIME_OUT", { id: myId });
             }
          }
       }
       
-      // SOLO EL HOST activa el BOOM por la fuerza (1s de gracia para milagros)
+      // SOLO EL HOST activa el BOOM por la fuerza SI ES SU TURNO, o deja margen grande para invitados
       if (this.isHost && remaining <= -1 && this.gameActive && !this.hostForcedBoom) {
-         this.hostForcedBoom = true;
-         if (this.timer) { clearTimeout(this.timer); this.timer = null; }
-         this.triggerBoom();
+         if (this.amIActive()) {
+            this.hostForcedBoom = true;
+            if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+            this.triggerBoom();
+         } else if (remaining <= -10) { // Margen grande si el invitado se desconecta o no envía timeout
+            this.hostForcedBoom = true;
+            if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+            this.triggerBoom();
+         }
       }
     };
 
@@ -1017,8 +1047,7 @@ class WordGame {
 
     this.hostForcedBoom = true;
 
-    clearTimeout(this.timer);
-    this.timer = null;
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
     if (this.timerDisplayInterval) {
       clearInterval(this.timerDisplayInterval);
       this.timerDisplayInterval = null;
@@ -1262,6 +1291,11 @@ class WordGame {
            this.showTurnChangeOverlay(nextState); // Muestra por 3s
         }
       }
+      
+      const myId = this.isHost ? "host" : (this.network ? this.network.myId : "guest");
+      if (this.players[myId] && this.players[myId].lives <= 0) {
+         document.getElementById("eliminated-overlay").classList.remove("hidden");
+      }
     }, 1500);
 
     const delay = Math.max(0, nextState.turnStartTime - Date.now());
@@ -1430,6 +1464,7 @@ class WordGame {
   resetGame(isReplay) {
     document.getElementById("btn-ready").classList.remove("hidden");
     document.getElementById("ready-status").classList.add("hidden");
+    document.getElementById("eliminated-overlay").classList.add("hidden");
     Object.values(this.players).forEach(p => p.isReady = false);
 
     if (isReplay) {

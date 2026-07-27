@@ -489,11 +489,11 @@ class StopGame {
     this.stopTriggeredBy = null;
     this.reviewDone      = false;
 
-    // Initialize tracking structures for the host
     if (this.isHost) {
        this._receivedAnswersCount = 0;
        this._receivedVotesCount = 0;
        this._readyNextCount = 0;
+       this.reviewStarted = false;
     }
 
     if (this.currentRound === 1) {
@@ -685,6 +685,9 @@ class StopGame {
       this._showStopOverlay('me');
     } else if (by === "time") {
       // Se acabo el tiempo localmente
+      if (this.isHost) {
+        this.network.send('STOP_TRIGGER', { triggeredBy: 'time' });
+      }
       this._showStopOverlay('time');
     } else {
       // Fue otro jugador.
@@ -695,6 +698,14 @@ class StopGame {
       this._showStopOverlay('opponent');
     }
     
+    // Si soy Host, inicio un timeout de seguridad por si no llegan respuestas
+    if (this.isHost) {
+      if (this.reviewTimeout) clearTimeout(this.reviewTimeout);
+      this.reviewTimeout = setTimeout(() => {
+         this._tryStartReview(true);
+      }, 5000); // 5 segundos de espera máxima para recibir respuestas
+    }
+
     // Enviar respuestas al host
     if (this.isHost) {
        this._receiveAnswers(myId, this.myAnswers);
@@ -735,11 +746,14 @@ class StopGame {
   }
 
   // Espera a tener todas las respuestas para iniciar revisión (Solo Host)
-  _tryStartReview() {
+  _tryStartReview(force = false) {
     if (!this.isHost) return;
+    if (this.reviewStarted) return;
     
-    // Validar si ya recibí de todos
-    if (this._receivedAnswersCount >= Object.keys(this.players).length) {
+    // Validar si ya recibí de todos o forzado
+    if (force || this._receivedAnswersCount >= Object.keys(this.players).length) {
+       this.reviewStarted = true;
+       if (this.reviewTimeout) clearTimeout(this.reviewTimeout);
        this.currentReviewCatIndex = 0;
        this._resetCategoryVotes();
        setTimeout(() => this._broadcastCurrentCategory(), 1000);
@@ -876,6 +890,12 @@ class StopGame {
     if (this.isHost) {
       this._updateVotesUI(this.categoryVotes);
       this._checkCategoryVotesComplete(); // In case everyone was empty
+      
+      // Iniciar timer de seguridad para los votos
+      if (this.voteTimeout) clearTimeout(this.voteTimeout);
+      this.voteTimeout = setTimeout(() => {
+        this._forceResolveVotes();
+      }, 20000); // 20 segundos máximo para votar
     }
     
     // Next Cat listener (only for Host when ready)
@@ -935,6 +955,27 @@ class StopGame {
      });
      
      if (allVoted) {
+        if (this.voteTimeout) clearTimeout(this.voteTimeout);
+        this._resolveVotes(playerIds);
+     }
+  }
+  
+  _forceResolveVotes() {
+     const playerIds = Object.keys(this.players);
+     // Auto-validar a los que no votaron
+     playerIds.forEach(voterId => {
+        playerIds.forEach(targetId => {
+           if (!this.categoryVotes[voterId][targetId]) {
+              this.categoryVotes[voterId][targetId] = 'valid'; // default
+           }
+        });
+     });
+     this.network.send('STOP_VOTES_SYNC', { votes: this.categoryVotes });
+     this._updateVotesUI(this.categoryVotes);
+     this._resolveVotes(playerIds);
+  }
+
+  _resolveVotes(playerIds) {
         // Resolve tie or consensus
         let hasTie = false;
         const resolution = {};

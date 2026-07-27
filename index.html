@@ -157,6 +157,10 @@
       <section id="view-lobby" class="view hidden">
         <h2 class="section-title">Sala de Espera</h2>
         <div id="lobby-host" class="hidden">
+          <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid var(--accent); padding: 10px; border-radius: 8px; margin-bottom: 1rem;">
+            <p style="color: var(--accent); font-weight: bold; font-size: 0.9rem; margin-bottom: 5px;">Recomendación:</p>
+            <p style="font-size: 0.8rem; color: var(--text-main);">Para una mejor experiencia con hasta 6 jugadores, el creador de la sala debe usar el dispositivo con mejor rendimiento y conexión.</p>
+          </div>
           <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:0.5rem;">Comparte este código con tus amigos:</p>
           <div id="room-code-display" class="code-box">Cargando...</div>
           <div id="qr-container" class="qr-box"></div>
@@ -254,6 +258,10 @@
           <h1>💥 ¡BOOM!</h1>
           <p>Se acabó el tiempo</p>
         </div>
+        <div id="eliminated-overlay" class="eliminated-overlay hidden">
+          <h2>☠️ ELIMINADO</h2>
+          <p>Aún puedes ver la partida.</p>
+        </div>
         <button id="btn-exit-game" class="btn btn-text btn-exit-game">Salir del juego</button>
       </section>
 
@@ -350,6 +358,10 @@
         <h2 class="section-title">Sala de Espera</h2>
 
         <div id="stop-lobby-host" class="hidden">
+          <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid var(--accent); padding: 10px; border-radius: 8px; margin-bottom: 1rem;">
+            <p style="color: var(--accent); font-weight: bold; font-size: 0.9rem; margin-bottom: 5px;">Recomendación:</p>
+            <p style="font-size: 0.8rem; color: var(--text-main);">Para una mejor experiencia con hasta 6 jugadores, el creador de la sala debe usar el dispositivo con mejor rendimiento y conexión.</p>
+          </div>
           <p style="color:var(--text-muted);font-family:var(--font-body);margin-bottom:0.5rem;">Comparte este código con tus amigos:</p>
           <div id="stop-room-code-display" class="code-box">Cargando...</div>
           <div id="stop-qr-container" class="qr-box"></div>
