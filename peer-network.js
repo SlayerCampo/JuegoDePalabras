@@ -1,6 +1,7 @@
 class PeerNetwork {
-  constructor(isHost, onStateChange) {
+  constructor(isHost, onStateChange, roomPrefix = "") {
     this.isHost = isHost;
+    this.roomPrefix = roomPrefix;
     this.peer = null;
     this.connections = {}; // { peerId: conn }
     this.onStateChange = onStateChange; // Callback para informar a app.js
@@ -12,7 +13,8 @@ class PeerNetwork {
   init() {
     return new Promise((resolve, reject) => {
       // Generar ID corto si es host
-      const idOptions = this.isHost ? { id: this.generateShortId() } : {};
+      const shortId = this.generateShortId();
+      const idOptions = this.isHost ? { id: this.roomPrefix + shortId } : {};
 
       this.peer = new Peer(idOptions.id, {
         debug: 2,
@@ -31,7 +33,8 @@ class PeerNetwork {
         if (this.isHost) {
           this.hostId = id;
         }
-        resolve(id);
+        // Devolvemos solo la parte corta del ID si es host, para mostrar al usuario
+        resolve(this.isHost ? id.replace(this.roomPrefix, "") : id);
       });
 
       this.peer.on("error", (err) => {
@@ -62,7 +65,7 @@ class PeerNetwork {
   joinRoom(hostId) {
     return new Promise((resolve, reject) => {
       if (!this.peer) return reject("Peer not initialized");
-      this.hostId = hostId.toUpperCase();
+      this.hostId = this.roomPrefix + hostId.toUpperCase();
 
       const conn = this.peer.connect(this.hostId, { reliable: true });
       let settled = false;

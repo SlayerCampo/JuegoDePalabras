@@ -431,7 +431,18 @@ class WordGame {
     document.getElementById("lobby-host").classList.remove("hidden");
     document.getElementById("lobby-guest").classList.add("hidden");
 
-    this.network = new PeerNetwork(true, this.handleNetworkMessage.bind(this));
+    // Limpiar jugadores de sesiones anteriores
+    this.players = {
+      host: {
+        name: "Host",
+        emoji: EMOJIS[0],
+        lives: 3,
+        isReady: false,
+        id: "host"
+      }
+    };
+
+    this.network = new PeerNetwork(true, this.handleNetworkMessage.bind(this), "WB-");
     this.network.init().then((id) => {
       const inviteUrl = new URL(window.location.href);
       inviteUrl.searchParams.set("room", id);
@@ -465,7 +476,10 @@ class WordGame {
     document.getElementById("lobby-guest").classList.remove("hidden");
     document.getElementById("join-error").classList.add("hidden");
 
-    this.network = new PeerNetwork(false, this.handleNetworkMessage.bind(this));
+    // Limpiar jugadores de sesiones anteriores
+    this.players = {};
+
+    this.network = new PeerNetwork(false, this.handleNetworkMessage.bind(this), "WB-");
     this.peerReady = this.network.init();
 
     if (this.pendingRoomCode) {
@@ -974,7 +988,7 @@ class WordGame {
     if (text.length === 0) {
       liveBox.innerHTML = `<span class="faded">Esperando...</span>`;
     } else {
-      liveBox.innerText = text;
+      liveBox.innerHTML = `<span style="font-weight:bold;color:var(--text-main);">${escapeHTML(text)}</span>`;
     }
   }
 
@@ -1172,9 +1186,9 @@ class WordGame {
 
     if (nextState.round > this.currentRound) {
       turnMessage.innerText = `✨ Ronda ${nextState.round}`;
-      turnDetail.innerHTML = `Nuevo tiempo: <strong>${formatSeconds(nextRoundDuration)}s</strong>. Sigue <strong>${nextPlayerName}</strong> en <span id="turn-countdown">3</span>...`;
+      turnDetail.innerHTML = `Nuevo tiempo: <strong>${formatSeconds(nextRoundDuration)}s</strong>. Sigue <strong>${escapeHTML(nextPlayerName)}</strong> en <span id="turn-countdown">3</span>...`;
     } else {
-      turnMessage.innerText = `👉 Turno de ${nextPlayerName}`;
+      turnMessage.innerText = `👉 Turno de ${escapeHTML(nextPlayerName)}`;
       turnDetail.innerHTML = `Comienza en <span id="turn-countdown">3</span>...`;
     }
 
@@ -1362,7 +1376,7 @@ class WordGame {
     const winnerProfile = this.players[winner] || { name: "Nadie", emoji: "🏆" };
 
     document.getElementById("winner-emoji").innerText = winnerProfile.emoji;
-    document.getElementById("winner-name").innerText = winnerProfile.name;
+    document.getElementById("winner-name").innerText = escapeHTML(winnerProfile.name);
 
     const historyContainer = document.getElementById("word-history");
     historyContainer.innerHTML = `<h3 style="text-align:center; color:white; margin-bottom: 1rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">🏅 Ranking Final</h3>`;
@@ -1394,7 +1408,7 @@ class WordGame {
          <span style="font-size: 1.5rem; width: 30px; text-align: center;">${medal}</span>
          <span style="font-size: 2rem;">${p.emoji}</span>
          <div style="flex: 1;">
-            <div style="font-weight: bold; font-size: 1.1rem; color: ${index === 0 ? 'white' : 'var(--text)'};">${p.name}</div>
+            <div style="font-weight: bold; font-size: 1.1rem; color: ${index === 0 ? 'white' : 'var(--text)'};">${escapeHTML(p.name)}</div>
             <div style="font-size: 0.85rem; color: ${index === 0 ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)'};">${p.lives} vidas</div>
          </div>
        `;
@@ -1434,8 +1448,8 @@ class WordGame {
            const pName = this.getPlayerNameById(playerId);
            wordsHTML += `
             <div class="word-row">
-              <span class="player">${pName}:</span>
-              <span>${word}</span>
+              <span class="player">${escapeHTML(pName)}:</span>
+              <span>${escapeHTML(word)}</span>
             </div>
            `;
         });

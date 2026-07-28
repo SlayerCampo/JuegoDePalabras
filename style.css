@@ -2181,3 +2181,66 @@ body::after {
   border-radius: 4px;
 }
 
+
+/* Menú Global Flotante */
+.global-menu-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+#btn-global-menu {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  transition: transform 0.2s, background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#btn-global-menu:hover {
+  transform: scale(1.1);
+  background: var(--bg-secondary);
+}
+
+#global-menu-dropdown {
+  position: absolute;
+  bottom: 60px;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  min-width: 180px;
+}
+
+#global-menu-dropdown.hidden {
+  display: none !important;
+}
+
+#global-menu-dropdown button {
+  background: none;
+  border: none;
+  color: var(--text-main);
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+#global-menu-dropdown button:hover {
+  background: var(--bg-secondary);
+}

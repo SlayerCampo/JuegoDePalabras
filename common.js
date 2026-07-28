@@ -4,6 +4,18 @@
 
 const EMOJIS = ["😎", "🤖", "👽", "👻", "🤡", "🦊", "🐯", "🐶", "🐱", "🐵"];
 
+// Función para prevenir inyección de código (XSS)
+function escapeHTML(str) {
+  return String(str).replace(/[&<>'"]/g, 
+    tag => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    }[tag] || tag)
+  );
+}
 // Sistema para manejar el cambio entre vistas (pantallas)
 function showAppView(viewName) {
   const allViewIds = [

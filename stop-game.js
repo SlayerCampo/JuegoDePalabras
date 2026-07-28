@@ -221,7 +221,12 @@ class StopGame {
     document.getElementById('stop-lobby-host').classList.remove('hidden');
     document.getElementById('stop-lobby-guest').classList.add('hidden');
 
-    this.network = new PeerNetwork(true, this._handleNetwork.bind(this));
+    // Limpiar jugadores de sesiones anteriores
+    this.players = {
+      host: { name: 'Host', emoji: '😎', isReady: false, id: 'host', score: 0 }
+    };
+
+    this.network = new PeerNetwork(true, this._handleNetwork.bind(this), "ST-");
     this.network.init().then(id => {
       const url = new URL(window.location.href);
       url.searchParams.set('stoproom', id);
@@ -243,11 +248,13 @@ class StopGame {
     document.getElementById('stop-lobby-guest').classList.remove('hidden');
     document.getElementById('stop-join-error').classList.add('hidden');
 
-    // Restaurar form de invitado
     document.getElementById('stop-lobby-guest-form').classList.remove('hidden');
     document.getElementById('stop-lobby-guest-waiting').classList.add('hidden');
 
-    this.network = new PeerNetwork(false, this._handleNetwork.bind(this));
+    // Limpiar jugadores de sesiones anteriores
+    this.players = {};
+
+    this.network = new PeerNetwork(false, this._handleNetwork.bind(this), "ST-");
     this.peerReady = this.network.init();
 
     if (autoCode) {
@@ -437,10 +444,10 @@ class StopGame {
       if (p.isReady) {
         el.style.opacity = "0.5";
         el.style.border = "1px solid var(--success)";
-        el.innerHTML = `<span style="font-size:1.2rem;">${p.emoji}</span> <span style="flex:1;">${p.name}</span> <span style="color:var(--success);">✔ Listo</span>`;
+        el.innerHTML = `<span style="font-size:1.2rem;">${p.emoji}</span> <span style="flex:1;">${escapeHTML(p.name)}</span> <span style="color:var(--success);">✔ Listo</span>`;
       } else {
         el.style.border = "1px solid var(--border)";
-        el.innerHTML = `<span style="font-size:1.2rem;">${p.emoji}</span> <span style="flex:1;">${p.name}</span> <span style="color:var(--text-muted);">Esperando...</span>`;
+        el.innerHTML = `<span style="font-size:1.2rem;">${p.emoji}</span> <span style="flex:1;">${escapeHTML(p.name)}</span> <span style="color:var(--text-muted);">Esperando...</span>`;
       }
       list.appendChild(el);
     });
@@ -560,7 +567,7 @@ class StopGame {
       header.innerHTML += `
         <div class="player-info" id="sp1-info">
           <span class="emoji">${myP.emoji}</span>
-          <span class="name" id="sp1-name">${myP.name}</span>
+          <span class="name" id="sp1-name">${escapeHTML(myP.name)}</span>
           <div class="stop-score-chip" id="sp1-score">${myP.score} pts</div>
         </div>
       `;
@@ -816,7 +823,7 @@ class StopGame {
       const p = this.players[playerId];
       const pAns = (payload.allAnswers && payload.allAnswers[playerId] && payload.allAnswers[playerId][cat]) || '';
       const isEmpty = !pAns.trim();
-      const ansText = isEmpty ? '(sin respuesta)' : pAns;
+      const ansText = isEmpty ? '(sin respuesta)' : escapeHTML(pAns);
 
       if (isEmpty && this.isHost) {
         // Auto-invalid for empty
@@ -829,7 +836,7 @@ class StopGame {
          <div class="stop-vote-card" id="vote-card-${playerId}">
            <div class="stop-vote-card-header">
              <div class="stop-vote-player">
-               <span>${p.emoji}</span> <span>${p.name}</span>
+               <span>${p.emoji}</span> <span>${escapeHTML(p.name)}</span>
              </div>
              <div class="stop-vote-word ${isEmpty ? 'empty' : ''}">${ansText}</div>
            </div>
@@ -1082,7 +1089,7 @@ class StopGame {
           <div class="stop-score-row" style="margin-top: 10px;">
             <div class="stop-score-player">
               <span>${p.emoji}</span>
-              <span>${p.name}</span>
+              <span>${escapeHTML(p.name)}</span>
             </div>
             <div class="stop-score-value">
               <span style="color:var(--accent); font-size: 0.9em; margin-right: 10px;">+${rPts}</span>
@@ -1168,7 +1175,7 @@ class StopGame {
     document.getElementById('stop-trophy').innerText = iMeWin ? '🏆' : '😔';
     document.getElementById('stop-winner-text').innerText = iMeWin
       ? `¡Ganaste con ${winner.score} puntos!`
-      : `¡${winner.name} ganó con ${winner.score} puntos!`;
+      : `¡${winner.name} ganó con ${winner.score} puntos!`; // innerText automatically escapes
 
     let rows = '';
     sortedPlayers.forEach((p, idx) => {
@@ -1176,7 +1183,7 @@ class StopGame {
       const position = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '#' + (idx + 1);
       rows += `<tr style="${isWinner ? 'background: rgba(255,215,0,0.2); font-weight: bold; font-size: 1.1em;' : ''}">
          <td>${position}</td>
-         <td>${p.emoji} ${p.name}</td>
+         <td>${p.emoji} ${escapeHTML(p.name)}</td>
          <td>${p.score}</td>
        </tr>`;
     });
