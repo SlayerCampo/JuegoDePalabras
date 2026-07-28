@@ -923,10 +923,12 @@ class StopGame {
         if (vote) {
           const badgeId = `badges-${vote}-${targetId}`;
           if (!gatheredBadges[badgeId]) gatheredBadges[badgeId] = [];
-          
+
           const p = this.players[voterId];
-          gatheredBadges[badgeId].push(p.emoji);
-          
+          if (p) {
+            gatheredBadges[badgeId].push(p.emoji);
+          }
+
           // Si es mi voto, marcar el botón como seleccionado
           if (voterId === myId) {
             document.querySelectorAll(`.stop-vote-btn[data-target="${targetId}"]`).forEach(b => b.classList.remove('selected'));
@@ -937,19 +939,19 @@ class StopGame {
       });
     });
 
+    // Render grouped badges with +N overflow
     Object.keys(gatheredBadges).forEach(badgeId => {
       const badgeContainer = document.getElementById(badgeId);
-      if (badgeContainer) {
-        const emojis = gatheredBadges[badgeId];
-        const MAX_EMOJIS = 4;
-        if (emojis.length <= MAX_EMOJIS) {
-          badgeContainer.innerHTML = emojis.map(e => `<div class="stop-vote-badge">${e}</div>`).join('');
-        } else {
-          const visible = emojis.slice(0, MAX_EMOJIS - 1);
-          const extraCount = emojis.length - (MAX_EMOJIS - 1);
-          badgeContainer.innerHTML = visible.map(e => `<div class="stop-vote-badge">${e}</div>`).join('') +
-            `<div class="stop-vote-badge" style="font-size: 0.85rem; font-weight: bold; background: rgba(0,0,0,0.5); color: white; display: flex; align-items: center; justify-content: center; padding: 0;">+${extraCount}</div>`;
-        }
+      if (!badgeContainer) return;
+      const emojis = gatheredBadges[badgeId];
+      const MAX_SHOW = 3;
+      if (emojis.length <= MAX_SHOW) {
+        badgeContainer.innerHTML = emojis.map(e => `<div class="stop-vote-badge">${e}</div>`).join('');
+      } else {
+        const visible = emojis.slice(0, MAX_SHOW);
+        const extra = emojis.length - MAX_SHOW;
+        badgeContainer.innerHTML = visible.map(e => `<div class="stop-vote-badge">${e}</div>`).join('') +
+          `<div class="stop-vote-badge" style="font-size:0.75rem;font-weight:900;background:rgba(0,0,0,0.6);color:#fff;min-width:22px;text-align:center;border-radius:50%;padding:2px 4px;">+${extra}</div>`;
       }
     });
   }
